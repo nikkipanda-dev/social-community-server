@@ -187,7 +187,7 @@ class AccountController extends Controller
     public function isTokenValid($token) {
         $isValid = false;
 
-        $invitationToken = InvitationToken::where('token', $token)->first();
+        $invitationToken = InvitationToken::where('token', base64_decode($token))->first();
 
         if ($invitationToken) {
             if ($invitationToken->is_valid) {

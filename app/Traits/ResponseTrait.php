@@ -20,4 +20,14 @@ trait ResponseTrait {
             ]
         ];
     }
+
+    public function getPredefinedResponse($type) {
+        $response = null;
+
+        if ($type === 'default') {
+            $response = "Something went wrong. Please try again in a few seconds or contact us directly for assistance."; 
+        }
+
+        return $response;
+    }
 }
