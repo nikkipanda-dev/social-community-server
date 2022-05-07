@@ -29,9 +29,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('invite', [AccountController::class, 'invite']);
 
     // Community
-    Route::post('community/store', [CommunityController::class, 'store']);
+    Route::get('community/details', [CommunityController::class, 'getDetails']);
+    Route::post('community/store-name', [CommunityController::class, 'storeName']);
+    Route::post('community/store-image', [CommunityController::class, 'storeImage']);
+    Route::post('community/store-description', [CommunityController::class, 'storeDescription']);
+    Route::post('community/update-name', [CommunityController::class, 'updateName']);
+    Route::post('community/update-description', [CommunityController::class, 'updateDescription']);
 });
-
-// Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//     return $request->user();
-// });

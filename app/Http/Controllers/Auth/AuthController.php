@@ -29,7 +29,7 @@ class AuthController extends Controller
                 Log::info("User:");
                 Log::info($user);
                 if (Auth::attempt(['email' => $request->email, 'password' => $request->password], $request->remember)) {
-                    $token = $user->createToken('auth_token')->plainTextToken;
+                    $token = $user->createToken('auth_user')->plainTextToken;
 
                     if ($token) {
                         Log::info("Successfully authenticated user ID " . $user->id . ". Leaving AuthController authenticate...");

@@ -29,49 +29,61 @@ class AccountController extends Controller
         $errorText = null;
         $isSuccess = false;
 
-        foreach ($request->emails_list as $email) {
-            // Check if user already has a record
+        try {
+            $tokenResponse = DB::transaction(function () use ($request, $isSuccess, $errorText, $existingEmails) {
+                foreach ($request->emails_list as $email) {
+                    // Check if user already has a record
 
-            $user = User::withTrashed()->where('email', $email)->first();
+                    $user = User::withTrashed()->where('email', $email)->first();
 
-            if (!($user)) {
-                Log::info("New user");
-                $tokenResponse = DB::transaction(function () use($email, $isSuccess, $errorText) {
-                    $randBytes = random_bytes(30);
+                    if (!($user)) {
+                        $randBytes = random_bytes(30);
 
-                    $token = new InvitationToken();
+                        $token = new InvitationToken();
 
-                    $token->email = $email;
-                    $token->token = bin2hex($randBytes);
-                    $token->is_valid = true;
+                        $token->email = $email;
+                        $token->token = bin2hex($randBytes);
+                        $token->is_valid = true;
 
-                    $token->save();
+                        $token->save();
 
-                    if ($token) {
-                        $isSuccess = true;
-                        Mail::to($email)->send(new InvitationMail($token->token));
+                        if ($token) {
+                            $isSuccess = true;
+                            Mail::to($email)->send(new InvitationMail($token->token));
+                        } else {
+                            $isSuccess = false;
+                            $errorText = "Failed to send invitation link. Please try again in a few seconds or contact the developers directly for assistance.";
+
+                            throw new Exception("Failed to persist token to database for email " . $email . ".");
+                        }
                     } else {
-                        $isSuccess = false;
-                        $errorText = "Failed to send invitation link. Please try again in a few seconds or contact the developers directly for assistance.";
-
-                        throw new Exception("Failed to persist token to database for email " . $email . ".");
+                        $existingEmails[] = $email;
                     }
-                    
-                    return [
-                        'isSuccess' => $isSuccess,
-                        'errorText' => $errorText,
-                    ];
-                }, 3);
-
-                if ($tokenResponse['isSuccess']) {
-                    Log::info("Success");
-                } else {
-                    Log::info("Not successful");
                 }
+
+                return [
+                    'isSuccess' => $isSuccess,
+                    'errorText' => $errorText,
+                    'existingEmails' => $existingEmails,
+                ];
+            }, 3);
+
+            if ($tokenResponse['isSuccess']) {
+                Log::info("Successfully sent member invitations. Leaving AccountController invite...");
+                
+                return $this->successResponse("details", "Successully sent member invitations.");
             } else {
-                Log::info("Existing");
-                $existingEmails[] = $email;
+                Log::error($tokenResponse['errorText']);
+
+                return $this->errorResponse([
+                    'message' => '',
+                    'existing_emails' => $tokenResponse['isSuccess']['existingEmails'],
+                ]);
             }
+        } catch (\Exception $e) {
+            Log::error("Failed to send member invitations. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default'));
         }
     }
 
@@ -159,7 +171,7 @@ class AccountController extends Controller
                 } else {
                     Log::error($userResponse['errorText']);
 
-                    return $this->errorResponse("Something went wrong. Please contact us directly for assistance.");
+                    return $this->errorResponse($this->getPredefinedResponse('default'));
                 }
             } else {
                 Log::error("Invitation link is invalid or might be deleted.");
