@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\CommunityDetail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
 
@@ -85,10 +86,43 @@ class CommunityController extends Controller
         }
     }
 
-    public function storeImage(Request $request) {
-        return response('ok', 200);
-        
+    public function storeImage(Request $request) {        
         Log::info("Entering CommunityController storeName...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'image' => 'bail|required|image',
+        ]);
+
+        $isSuccess = false;
+        $errorText = '';
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            // $imageResponse = DB::transaction(function () use($isSuccess, $errorText) {
+                                
+                            // }, 3);
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to store community image. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to store community image. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+
+        }
     }
 
     public function storeDescription(Request $request) {
