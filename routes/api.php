@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
 
     // Account
+    Route::get('search-user', [AccountController::class, 'searchUser']);
     Route::post('invite', [AccountController::class, 'invite']);
 
     // Community
@@ -33,6 +34,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('community/store-name', [CommunityController::class, 'storeName']);
     Route::post('community/store-image', [CommunityController::class, 'storeImage']);
     Route::post('community/store-description', [CommunityController::class, 'storeDescription']);
+    Route::post('community/store-team', [CommunityController::class, 'storeTeam']);
     Route::post('community/update-name', [CommunityController::class, 'updateName']);
     Route::post('community/update-description', [CommunityController::class, 'updateDescription']);
 });

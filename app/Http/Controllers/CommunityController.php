@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\TeamMember;
 use App\Models\CommunityDetail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
+use Exception;
 
 class CommunityController extends Controller
 {
@@ -170,6 +172,102 @@ class CommunityController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to store community description. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function storeTeam(Request $request) {
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'team_members' => 'bail|required|array|min:1',
+        ]);
+
+        $isSuccess = false;
+        $errorText = '';
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    $teamResponse = null;
+
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            foreach ($request->team_members as $member) {
+                                $decoded = json_decode($member, true, 3);
+
+                                $teamResponse = DB::transaction(function () use ($isSuccess, $errorText, $decoded) {
+                                    foreach ($decoded as $item) {
+                                        $isSuccess = false;
+
+                                        $username = substr($item['username'], 1);
+                                        if ($item['username'][0] === "@" && $username) {
+                                            $mentionedUser = User::where('username', $username)->first();
+
+                                            if ($mentionedUser) {
+                                                $teamMember = new TeamMember();
+
+                                                $teamMember->user_id = $mentionedUser->id;
+                                                $teamMember->title = $item['title'];
+
+                                                $teamMember->save();
+
+                                                if ($teamMember) {
+                                                    $isSuccess = true;
+                                                } else {
+                                                    $errorText = "Failed to store team member username " . $mentionedUser->username . ".\n";
+
+                                                    throw new Exception("Failed to store team member username " . $mentionedUser->username . ".\n");
+                                                }
+                                            } else {
+                                                $isSuccess = false;
+                                                $errorText = "Failed to store team member. User " . $mentionedUser->username . " does not exist or might be deleted.\n";
+
+                                                throw new Exception("Failed to store team member. User " . $mentionedUser->username . " does not exist or might be deleted.\n");
+                                            }
+                                        } else {
+                                            $errorText = "Failed to store team member. Username does not match regular expression.\n";
+
+                                            throw new Exception("Failed to store team member. Username does not match regular expression.\n");
+                                        }
+                                    }
+
+                                    return [
+                                        'isSuccess' => $isSuccess,
+                                        'errorText' => $errorText,
+                                    ];
+                                }, 3);
+                            }
+
+                            break;
+                        }
+                    }
+
+                    if ($teamResponse['isSuccess']) {
+                        Log::info("Successfully stored team members. Leaving CommunityController storeTeam...");
+
+                        $team = TeamMember::all();
+
+                        return $this->successResponse("details", $team);
+                    } else {
+                        Log::error($teamResponse['errorText']);
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+                } else {
+                    Log::error("Failed to store team members. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to store team members. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to store team members. ".$e->getMessage().".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }

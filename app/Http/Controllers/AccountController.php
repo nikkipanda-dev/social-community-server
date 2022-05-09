@@ -17,6 +17,36 @@ class AccountController extends Controller
 {
     use ResponseTrait;
 
+    public function searchUser(Request $request) {
+        Log::info("Entering AccountController searchUser...");
+        
+        $this->validate($request, [
+            'username' => 'bail|required|alpha_num',
+        ]);
+
+        try {
+            $users = User::where('username', 'like', "%".$request->username."%")
+                         ->select('username', 'first_name', 'last_name')
+                         ->get();
+
+            Log::info($users);
+
+            if (count($users) > 0) {
+                Log::info("Successfully retrieved matched usernames. Leaving AccountController searchUser...");
+
+                return $this->successResponse("details", $users);
+            } else {
+                Log::error("None matched.\n");
+
+                return $this->errorResponse("None matched.");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to search user. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
     public function invite(Request $request) {
         Log::info("Entering AccountController invite...");
 
@@ -83,7 +113,7 @@ class AccountController extends Controller
         } catch (\Exception $e) {
             Log::error("Failed to send member invitations. ".$e->getMessage().".\n");
 
-            return $this->errorResponse($this->getPredefinedResponse('default'));
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
     }
 
@@ -171,7 +201,7 @@ class AccountController extends Controller
                 } else {
                     Log::error($userResponse['errorText']);
 
-                    return $this->errorResponse($this->getPredefinedResponse('default'));
+                    return $this->errorResponse($this->getPredefinedResponse('default', null));
                 }
             } else {
                 Log::error("Invitation link is invalid or might be deleted.");
