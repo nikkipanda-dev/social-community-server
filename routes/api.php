@@ -31,10 +31,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Community
     Route::get('community/details', [CommunityController::class, 'getDetails']);
+    Route::get('community/team', [CommunityController::class, 'getTeamMembers']);
+    Route::get('community/social-network-accounts', [CommunityController::class, 'getSocialNetworkAccounts']);
     Route::post('community/store-name', [CommunityController::class, 'storeName']);
     Route::post('community/store-image', [CommunityController::class, 'storeImage']);
     Route::post('community/store-description', [CommunityController::class, 'storeDescription']);
     Route::post('community/store-team', [CommunityController::class, 'storeTeam']);
     Route::post('community/update-name', [CommunityController::class, 'updateName']);
     Route::post('community/update-description', [CommunityController::class, 'updateDescription']);
+    Route::post('community/update-team', [CommunityController::class, 'updateTeamMembers']);
+    Route::post('community/remove-team-member', [CommunityController::class, 'destroyTeamMember']);
+    Route::post('community/update-website', [CommunityController::class, 'updateWebsite']);
 });

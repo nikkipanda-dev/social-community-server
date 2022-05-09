@@ -38,6 +38,51 @@ class CommunityController extends Controller
         }
     }
 
+    public function getTeamMembers() {
+        Log::info("Entering CommunityController getTeamMembers...");
+
+        try {
+            $team = TeamMember::with('user:id,first_name,last_name,username')->get();
+
+            if (count($team) > 0) {
+                Log::info("Successfully retrieved team members. Leaving CommunityController getTeamMembers...");
+
+                return $this->successResponse('details', $team);
+            } else {
+                Log::error("Failed to retrieve team members. No data yet.\n");
+
+                return $this->errorResponse("No data to show.");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve team members. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function getSocialNetworkAccounts() {
+        Log::info("Entering CommunityController getSocialNetworkAccounts...");
+
+        try {
+            $socialNetworkAccounts = CommunityDetail::pluck('facebook_account', 'instagram_account', 'twitter_account', 'website');
+
+            if ($socialNetworkAccounts) {
+                Log::info($socialNetworkAccounts);
+                Log::info("Successfully retrieved community social network accounts. Leaving CommunityController getSocialNetworkAccounts...");
+
+                return $this->successResponse('details', $socialNetworkAccounts);
+            } else {
+                Log::error("Failed to retrieve community social network accounts. No data yet.\n");
+
+                return $this->errorResponse("No data to show.");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve community social network accounts. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
     public function storeName(Request $request) {        
         Log::info("Entering CommunityController storeName...");
 
@@ -248,7 +293,7 @@ class CommunityController extends Controller
                     if ($teamResponse['isSuccess']) {
                         Log::info("Successfully stored team members. Leaving CommunityController storeTeam...");
 
-                        $team = TeamMember::all();
+                        $team = TeamMember::with('user:id,first_name,last_name,username')->get();
 
                         return $this->successResponse("details", $team);
                     } else {
@@ -370,6 +415,156 @@ class CommunityController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to update description. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function destroyTeamMember(Request $request) {
+        Log::info("Entering CommunityController destroyTeamMember...");
+
+        $this->validate($request, [
+            'auth_username' => 'bail|required|exists:users,username',
+            'id' => 'bail|required|exists:team_members',
+            'username' => 'bail|required|alpha_num',
+        ]);
+
+        $isSuccess = false;
+        $errorText = '';
+        $teamResponse = null;
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $teamMember = TeamMember::with('user')->find($request->id);
+
+                            if ($teamMember && ($teamMember->user->username === $request->username)) {
+                                $teamResponse = DB::transaction(function () use ($isSuccess, $errorText, $teamMember) {
+                                    $originalId = $teamMember->getOriginal('id');
+
+                                    $teamMember->delete();
+
+                                    if (!(TeamMember::find($originalId))) {
+                                        $isSuccess = true;
+                                    } else {
+                                        $errorText = "Failed to soft delete team member.\n";
+
+                                        throw new Exception("Failed to soft delete team member.\n");
+                                    }
+
+                                    return [
+                                        'isSuccess' => $isSuccess,
+                                        'errorText' => $errorText,
+                                        'id' => $originalId,
+                                    ];
+                                }, 3);
+                            } else {
+                                Log::info("username". $teamMember->user->username);
+                                Log::info("reqauest".$request->username);
+                                Log::error("Failed to soft delete team member. Team member ID does not exist or might be deleted and/or username does not match record.\n");
+
+                                return $this->errorResponse($this->getPredefinedResponse('default', null));
+                            }
+                            break;
+                        }   
+                    }
+
+                    if ($teamResponse['isSuccess']) {
+                        Log::info("Successfully soft deleted team member ID ". $teamResponse['id']. ". Leaving CommunityController destroyTeamMember...\n");
+
+                        $team = TeamMember::with('user:id,first_name,last_name,username')->get();
+
+                        return $this->successResponse("details", $team);
+                    } else {
+                        Log::error($teamResponse['errorText']);
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+                } else {
+                    Log::error("Failed to soft delete team member. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to soft delete team member. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to soft delete team member. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateWebsite(Request $request) {
+        Log::info("Entering CommunityController storeWebsite...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'website' => 'bail|required|between:10,100',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $communityDetails = CommunityDetail::first();
+
+                            if ($communityDetails) {
+                                $communityDetails->website = $request->website;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails->wasChanged('website')) {
+                                    Log::info("Successfully updated community website. Leaving CommunityController updateWebsite...");
+
+                                    return $this->successResponse('details', $communityDetails->refresh());
+                                } else {
+                                    Log::error("Community website was not changed. No action needed.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('not changed', 'community website'));
+                                }
+                            } else {
+                                $communityDetails = new CommunityDetail();
+
+                                $communityDetails->website = $request->website;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails) {
+                                    Log::info("Successfully updated community website. Leaving CommunityController updateWebsite...");
+
+                                    return $this->successResponse('details', $communityDetails);
+                                } else {
+                                    Log::error("Failed to store community website to database.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+                            }
+                            break;
+                        }    
+                    }
+                } else {
+                    Log::error("Failed to update community website. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to update community website. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to store website. ".$e->getMessage().".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
