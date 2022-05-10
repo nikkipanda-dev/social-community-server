@@ -11,11 +11,12 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Traits\ResponseTrait;
+use App\Traits\AuthTrait;
 use Exception;
 
 class AccountController extends Controller
 {
-    use ResponseTrait;
+    use ResponseTrait, AuthTrait;
 
     public function searchUser(Request $request) {
         Log::info("Entering AccountController searchUser...");
@@ -238,5 +239,163 @@ class AccountController extends Controller
         }
         
         return $isValid;
+    }
+
+    public function getUsers() {
+        Log::info("Entering AccountController getUsers...");
+
+        try {
+            $users = User::get();
+
+            if (count($users) > 0) {
+                Log::info("Successfully retrieved the users. Leaving AccountController getUsers...");
+
+                return $this->successResponse('details', $users);
+            } else {
+                Log::error("No users yet. No action needed.\n");
+
+                return $this->errorResponse("No users yet.");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve users. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function getAdministrators() {
+        Log::info("Entering AccountController getAdministrators...");
+
+        try {
+            $administrators = User::where('is_admin', true)->get();
+
+            if (count($administrators) > 0) {
+                Log::info("Successfully retrieved the administrators. Leaving AccountController getAdministrators...");
+
+                return $this->successResponse('details', $administrators);
+            } else {
+                Log::error("No administrators yet. No action needed.\n");
+
+                return $this->errorResponse("No administrators yet.");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve administrators. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function destroyAdministrator(Request $request) {
+        Log::info("Entering AccountController destroyAdministrator...");
+
+        $this->validate($request, [
+            'auth_username' => 'bail|required|exists:users,username',
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->auth_username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $admin = User::where('username', $request->username)->first();
+
+                            if ($admin) {
+                                $admin->is_admin = false;
+
+                                $admin->save();
+
+                                if ($admin->wasChanged('is_admin')) {
+                                    Log::info("Successfully removed user ID ".$admin->username."'s admin privileges.\n");
+
+                                    return $this->successResponse('details', $admin->only(['first_name', 'last_name', 'username']));
+                                } else {
+                                    Log::error("User ID " . $admin->username . "'s admin privileges was not changed. No action needed.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('not changed', $admin->username."'s admininstrator status"));
+                                }
+                            } else {
+                                Log::error("Failed to remove admin privileges. Admin does not exist or might be deleted.\n");
+
+                                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to remove admin privileges. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to remove admin privileges. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to remove admin privileges. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function destroyUser(Request $request) {
+        Log::info("Entering AccountController destroyUser...");
+
+        $this->validate($request, [
+            'auth_username' => 'bail|required|exists:users,username',
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->auth_username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $targetUser = User::where('username', $request->username)->first();
+
+                            if ($targetUser) {
+                                $originalUsername = $targetUser->getOriginal('username');
+
+                                $targetUser->delete();
+
+                                if (!(User::where('username', $originalUsername)->first())) {
+                                    Log::info("Successfully soft deleted user " . $originalUsername . ".\n");
+
+                                    return $this->successResponse('details', $originalUsername);
+                                } else {
+                                    Log::error("Failed to soft delete user ID " . $targetUser->id . ".\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+                            } else {
+                                Log::error("Failed to soft delete user. User to be removed does not exist or might be deleted.\n");
+
+                                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to soft delete user. Authenticated user does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to soft delete user. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to soft delete user. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
     }
 }
