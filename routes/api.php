@@ -28,18 +28,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Account
     Route::get('search-user', [AccountController::class, 'searchUser']);
     Route::post('invite', [AccountController::class, 'invite']);
+    Route::get('users', [AccountController::class, 'getUsers']);
+    Route::get('administrators', [AccountController::class, 'getAdministrators']);
+    Route::post('destroy-administrator', [AccountController::class, 'destroyAdministrator']);
+    Route::post('destroy-user', [AccountController::class, 'destroyUser']);
 
     // Community
     Route::get('community/details', [CommunityController::class, 'getDetails']);
     Route::get('community/team', [CommunityController::class, 'getTeamMembers']);
-    Route::get('community/social-network-accounts', [CommunityController::class, 'getSocialNetworkAccounts']);
-    Route::post('community/store-name', [CommunityController::class, 'storeName']);
     Route::post('community/store-image', [CommunityController::class, 'storeImage']);
-    Route::post('community/store-description', [CommunityController::class, 'storeDescription']);
     Route::post('community/store-team', [CommunityController::class, 'storeTeam']);
     Route::post('community/update-name', [CommunityController::class, 'updateName']);
     Route::post('community/update-description', [CommunityController::class, 'updateDescription']);
     Route::post('community/update-team', [CommunityController::class, 'updateTeamMembers']);
     Route::post('community/remove-team-member', [CommunityController::class, 'destroyTeamMember']);
     Route::post('community/update-website', [CommunityController::class, 'updateWebsite']);
+    Route::post('community/update-facebook-account', [CommunityController::class, 'updateFacebookAccount']);
+    Route::post('community/update-instagram-account', [CommunityController::class, 'updateInstagramAccount']);
+    Route::post('community/update-twitter-account', [CommunityController::class, 'updateTwitterAccount']);
 });

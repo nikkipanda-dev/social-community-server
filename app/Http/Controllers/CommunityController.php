@@ -60,79 +60,6 @@ class CommunityController extends Controller
         }
     }
 
-    public function getSocialNetworkAccounts() {
-        Log::info("Entering CommunityController getSocialNetworkAccounts...");
-
-        try {
-            $socialNetworkAccounts = CommunityDetail::pluck('facebook_account', 'instagram_account', 'twitter_account', 'website');
-
-            if ($socialNetworkAccounts) {
-                Log::info($socialNetworkAccounts);
-                Log::info("Successfully retrieved community social network accounts. Leaving CommunityController getSocialNetworkAccounts...");
-
-                return $this->successResponse('details', $socialNetworkAccounts);
-            } else {
-                Log::error("Failed to retrieve community social network accounts. No data yet.\n");
-
-                return $this->errorResponse("No data to show.");
-            }
-        } catch (\Exception $e) {
-            Log::error("Failed to retrieve community social network accounts. " . $e->getMessage() . ".\n");
-
-            return $this->errorResponse($this->getPredefinedResponse('default', null));
-        }
-    }
-
-    public function storeName(Request $request) {        
-        Log::info("Entering CommunityController storeName...");
-
-        $this->validate($request, [
-            'username' => 'bail|required|exists:users',
-            'name' => 'bail|required|string|between:2,100',
-        ]);
-
-        try {
-            if ($this->hasAuthHeader($request->header('authorization'))) {
-                $user = User::where('username', $request->username)->first();
-
-                if ($user) {
-                    foreach ($user->tokens as $token) {
-                        if ($token->tokenable_id === $user->id) {
-                            $communityName = new CommunityDetail();
-
-                            $communityName->name = $request->name;
-
-                            $communityName->save();
-
-                            if ($communityName) {
-                                Log::info("Successfully stored community name. Leaving CommunityController storeName...\n");
-
-                                return $this->successResponse('details', $communityName);
-                            } else {
-                                Log::error("Failed to store community name to database.\n");
-
-                                return $this->errorResponse($this->getPredefinedResponse('default', null));
-                            }
-                            break;
-                        }
-                    }
-                } else {
-                    Log::error("Failed to store community name. User does not exist or might be deleted.\n");
-                    
-                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
-                }
-            } else {
-                Log::error("Failed to store community name. Missing authorization header or does not match regex.\n");
-
-                return $this->errorResponse($this->getPredefinedResponse('default', null));
-            }
-        } catch (\Exception $e) {
-            Log::error("Failed to store community name. ".$e->getMessage()."\n");
-
-            return $this->errorResponse($this->getPredefinedResponse('default', null));
-        }
-    }
-
     public function storeImage(Request $request) {        
         Log::info("Entering CommunityController storeName...");
 
@@ -169,56 +96,6 @@ class CommunityController extends Controller
             }
         } catch (\Exception $e) {
 
-        }
-    }
-
-    public function storeDescription(Request $request) {
-        Log::info("Entering CommunityController storeDescription...");
-
-        $this->validate($request, [
-            'username' => 'bail|required|exists:users',
-            'description' => 'bail|required|string|between:2,10000',
-        ]);
-
-        try {
-            if ($this->hasAuthHeader($request->header('authorization'))) {
-                $user = User::where('username', $request->username)->first();
-
-                if ($user) {
-                    foreach ($user->tokens as $token) {
-                        if ($token->tokenable_id === $user->id) {
-                            $communityDescription = new CommunityDetail();
-
-                            $communityDescription->description = $request->description;
-
-                            $communityDescription->save();
-
-                            if ($communityDescription) {
-                                Log::info("Successfully stored community description. Leaving CommunityController storeDescription...\n");
-
-                                return $this->successResponse('details', $communityDescription);
-                            } else {
-                                Log::error("Failed to store community description to database.\n");
-
-                                return $this->errorResponse($this->getPredefinedResponse('default', null));
-                            }
-                            break;
-                        }
-                    }
-                } else {
-                    Log::error("Failed to store community description. User does not exist or might be deleted.\n");
-
-                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
-                }
-            } else {
-                Log::error("Failed to store community description. Missing authorization header or does not match regex.\n");
-
-                return $this->errorResponse($this->getPredefinedResponse('default', null));
-            }
-        } catch (\Exception $e) {
-            Log::error("Failed to store community description. ".$e->getMessage().".\n");
-
-            return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
     }
 
@@ -337,33 +214,51 @@ class CommunityController extends Controller
                             $communityDetails = CommunityDetail::first();
 
                             if ($communityDetails) {
-                                $originalName = $communityDetails->getOriginal('name');
-
                                 $communityDetails->name = $request->name;
 
                                 $communityDetails->save();
 
                                 if ($communityDetails->wasChanged('name')) {
-                                    Log::info("Successfully updated community name from ".$originalName." to ".$communityDetails->name.".\n");
+                                    Log::info("Successfully updated community name. Leaving CommunityController updateName...");
 
-                                    return $this->successResponse('details', $communityDetails->name);
+                                    return $this->successResponse('details', $communityDetails->refresh()->name);
                                 } else {
-                                    Log::info("Community name not changed. No action needed.\n");
+                                    Log::error("Community name was not changed. No action needed.\n");
 
                                     return $this->errorResponse($this->getPredefinedResponse('not changed', 'community name'));
                                 }
                             } else {
-                                Log::error("Failed to update community name. No existing data.");
+                                $communityDetails = new CommunityDetail();
 
-                                return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                $communityDetails->name = $request->name;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails) {
+                                    Log::info("Successfully updated community name. Leaving CommunityController updateName...");
+
+                                    return $this->successResponse('details', $communityDetails->name);
+                                } else {
+                                    Log::error("Failed to store community name to database.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
                             }
                             break;
                         }
                     }
+                } else {
+                    Log::error("Failed to update community name. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
                 }
+            } else {
+                Log::error("Failed to update community name. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
             }
         } catch (\Exception $e) {
-            Log::error("Failed to update name. ".$e->getMessage().".\n");
+            Log::error("Failed to store community name. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
@@ -374,7 +269,7 @@ class CommunityController extends Controller
 
         $this->validate($request, [
             'username' => 'bail|required|exists:users',
-            'description' => 'bail|required|string|between:2,10000',
+            'description' => 'bail|required|string|between:10,10000',
         ]);
 
         try {
@@ -388,33 +283,51 @@ class CommunityController extends Controller
                             $communityDetails = CommunityDetail::first();
 
                             if ($communityDetails) {
-                                $originalDescription = $communityDetails->getOriginal('description');
-
                                 $communityDetails->description = $request->description;
 
                                 $communityDetails->save();
 
                                 if ($communityDetails->wasChanged('description')) {
-                                    Log::info("Successfully updated community description from " . $originalDescription . " to " . $communityDetails->description . ". Leaving CommunityController updateDescription...\n");
+                                    Log::info("Successfully updated community description. Leaving CommunityController updateDescription...");
 
-                                    return $this->successResponse('details', $communityDetails->description);
+                                    return $this->successResponse('details', $communityDetails->refresh()->description);
                                 } else {
-                                    Log::info("Community description not changed. No action needed.\n");
+                                    Log::error("Community description was not changed. No action needed.\n");
 
                                     return $this->errorResponse($this->getPredefinedResponse('not changed', 'community description'));
                                 }
                             } else {
-                                Log::error("Failed to update community description. No existing data.");
+                                $communityDetails = new CommunityDetail();
 
-                                return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                $communityDetails->description = $request->description;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails) {
+                                    Log::info("Successfully updated community description. Leaving CommunityController updateDescription...");
+
+                                    return $this->successResponse('details', $communityDetails->description);
+                                } else {
+                                    Log::error("Failed to store community description to database.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
                             }
                             break;
                         }
                     }
+                } else {
+                    Log::error("Failed to update community description. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
                 }
+            } else {
+                Log::error("Failed to update community description. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
             }
         } catch (\Exception $e) {
-            Log::error("Failed to update description. " . $e->getMessage() . ".\n");
+            Log::error("Failed to store community description. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
@@ -435,7 +348,7 @@ class CommunityController extends Controller
 
         try {
             if ($this->hasAuthHeader($request->header('authorization'))) {
-                $user = User::where('username', $request->username)->first();
+                $user = User::where('username', $request->auth_username)->first();
 
                 if ($user) {
                     foreach ($user->tokens as $token) {
@@ -506,7 +419,7 @@ class CommunityController extends Controller
 
         $this->validate($request, [
             'username' => 'bail|required|exists:users',
-            'website' => 'bail|required|between:10,100',
+            'website' => 'bail|required|between:2,100',
         ]);
 
         try {
@@ -520,7 +433,7 @@ class CommunityController extends Controller
                             $communityDetails = CommunityDetail::first();
 
                             if ($communityDetails) {
-                                $communityDetails->website = $request->website;
+                                $communityDetails->website = "https://".$request->website;
 
                                 $communityDetails->save();
 
@@ -536,7 +449,7 @@ class CommunityController extends Controller
                             } else {
                                 $communityDetails = new CommunityDetail();
 
-                                $communityDetails->website = $request->website;
+                                $communityDetails->website = "https://".$request->website;
 
                                 $communityDetails->save();
 
@@ -565,6 +478,213 @@ class CommunityController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to store website. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateFacebookAccount(Request $request) {
+        Log::info("Entering CommunityController updateFacebookAccount...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'facebook_account' => 'bail|required|between:2,100',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $communityDetails = CommunityDetail::first();
+
+                            if ($communityDetails) {
+                                $communityDetails->facebook_account = "https://facebook.com/".$request->facebook_account;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails->wasChanged('facebook_account')) {
+                                    Log::info("Successfully updated community's Facebook account. Leaving CommunityController updateFacebookAccount...");
+
+                                    return $this->successResponse('details', $communityDetails->refresh());
+                                } else {
+                                    Log::error("Community's Facebook account was not changed. No action needed.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('not changed', "community's Facebook account"));
+                                }
+                            } else {
+                                $communityDetails = new CommunityDetail();
+
+                                $communityDetails->facebook_account = "https://facebook.com/".$request->facebook_account;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails) {
+                                    Log::info("Successfully updated community's Facebook account. Leaving CommunityController updateFacebookAccount...");
+
+                                    return $this->successResponse('details', $communityDetails);
+                                } else {
+                                    Log::error("Failed to store community's Facebook account to database.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to update community's Facebook account. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to update community's Facebook account. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to store community's Facebook account. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateInstagramAccount(Request $request) {
+        Log::info("Entering CommunityController updateInstagramAccount...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'instagram_account' => 'bail|required|between:2,100',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $communityDetails = CommunityDetail::first();
+
+                            if ($communityDetails) {
+                                $communityDetails->instagram_account = "https://instagram.com/".$request->instagram_account;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails->wasChanged('instagram_account')) {
+                                    Log::info("Successfully updated community's Instagram account. Leaving CommunityController updateInstagramAccount...");
+
+                                    return $this->successResponse('details', $communityDetails->refresh());
+                                } else {
+                                    Log::error("Community's Instagram account was not changed. No action needed.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('not changed', "community's Instagram account"));
+                                }
+                            } else {
+                                $communityDetails = new CommunityDetail();
+
+                                $communityDetails->instagram_account = "https://instagram.com/".$request->instagram_account;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails) {
+                                    Log::info("Successfully updated community's Instagram account. Leaving CommunityController updateInstagramAccount...");
+
+                                    return $this->successResponse('details', $communityDetails);
+                                } else {
+                                    Log::error("Failed to store community's Instagram account to database.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to update community's Instagram account. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to update community's Instagram account. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to store community's Instagram account. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateTwitterAccount(Request $request) {
+        Log::info("Entering CommunityController updateTwitterAccount...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'twitter_account' => 'bail|required|between:2,100',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $communityDetails = CommunityDetail::first();
+
+                            if ($communityDetails) {
+                                $communityDetails->twitter_account = "https://twitter.com/".$request->twitter_account;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails->wasChanged('twitter_account')) {
+                                    Log::info("Successfully updated community's Twitter account. Leaving CommunityController updateTwitterAccount...");
+
+                                    return $this->successResponse('details', $communityDetails->refresh());
+                                } else {
+                                    Log::error("Community's Twitter account was not changed. No action needed.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('not changed', "community's Twitter account"));
+                                }
+                            } else {
+                                $communityDetails = new CommunityDetail();
+
+                                $communityDetails->twitter_account = "https://twitter.com/".$request->twitter_account;
+
+                                $communityDetails->save();
+
+                                if ($communityDetails) {
+                                    Log::info("Successfully updated community's Twitter account. Leaving CommunityController updateTwitterAccount...");
+
+                                    return $this->successResponse('details', $communityDetails);
+                                } else {
+                                    Log::error("Failed to store community's Twitter account to database.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to update community's Twitter account. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to update community's Twitter account. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to store community's Twitter account. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
