@@ -102,7 +102,7 @@ class AccountController extends Controller
             if ($tokenResponse['isSuccess']) {
                 Log::info("Successfully sent member invitations. Leaving AccountController invite...");
                 
-                return $this->successResponse("details", "Successully sent member invitations.");
+                return $this->successResponse("details", "Successully sent member invitation".((count($request->emails_list) > 1) ? "s" : '').".");
             } else {
                 Log::error($tokenResponse['errorText']);
 

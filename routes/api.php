@@ -3,7 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\BlogEntryController;
 use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\DiscussionPostController;
+use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\MicroblogEntryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,4 +50,19 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('community/update-facebook-account', [CommunityController::class, 'updateFacebookAccount']);
     Route::post('community/update-instagram-account', [CommunityController::class, 'updateInstagramAccount']);
     Route::post('community/update-twitter-account', [CommunityController::class, 'updateTwitterAccount']);
+
+    // Blog entries
+    Route::get('blog-entries', [BlogEntryController::class, 'getBlogEntries']);
+
+    // Microblog entries
+    Route::get('microblog-entries', [MicroblogEntryController::class, 'getMicroblogEntries']);
+
+    // Journal entries
+    Route::get('journal-entries', [JournalEntryController::class, 'getJournalEntries']);
+
+    // Discussion Posts
+    Route::get('discussion-posts', [DiscussionPostController::class, 'getDiscussionPosts']);
+
+    // Report
+    Route::post('report/store', [CommunityController::class, 'updateTwitterAccount']);
 });

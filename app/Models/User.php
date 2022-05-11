@@ -46,4 +46,20 @@ class User extends Authenticatable
     public function teamMembers() {
         return $this->hasMany(TeamMember::class);
     }
+
+    public function blogEntries() {
+        return $this->hasMany(BlogEntry::class);
+    }
+
+    public function microblogEntries() {
+        return $this->hasMany(MicroblogEntry::class);
+    }
+    
+    public function journalEntries() {
+        return $this->hasMany(JournalEntry::class);
+    }
+
+    public function discussionPosts() {
+        return $this->hasMany(DiscussionPost::class);
+    }
 }
