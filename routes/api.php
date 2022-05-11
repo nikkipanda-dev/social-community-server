@@ -6,8 +6,10 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BlogEntryController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\DiscussionPostController;
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\MicroblogEntryController;
+use App\Http\Controllers\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -63,6 +65,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Discussion Posts
     Route::get('discussion-posts', [DiscussionPostController::class, 'getDiscussionPosts']);
 
+    // Events
+    Route::get('events', [EventController::class, 'getEvents']);
+
     // Report
+    Route::get('reports', [ReportController::class, 'getReports']);
     Route::post('report/store', [CommunityController::class, 'updateTwitterAccount']);
 });
