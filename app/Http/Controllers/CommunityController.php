@@ -334,12 +334,12 @@ class CommunityController extends Controller
     }
 
     public function destroyTeamMember(Request $request) {
+        Log::info($request->all());
         Log::info("Entering CommunityController destroyTeamMember...");
 
         $this->validate($request, [
             'auth_username' => 'bail|required|exists:users,username',
             'id' => 'bail|required|exists:team_members',
-            'username' => 'bail|required|alpha_num',
         ]);
 
         $isSuccess = false;
@@ -355,8 +355,8 @@ class CommunityController extends Controller
                         if ($token->tokenable_id === $user->id) {
                             $teamMember = TeamMember::with('user')->find($request->id);
 
-                            if ($teamMember && ($teamMember->user->username === $request->username)) {
-                                $teamResponse = DB::transaction(function () use ($isSuccess, $errorText, $teamMember) {
+                            if ($teamMember) {
+                                $teamResponse = DB::transaction(function() use($isSuccess, $errorText, $teamMember) {
                                     $originalId = $teamMember->getOriginal('id');
 
                                     $teamMember->delete();
@@ -376,8 +376,6 @@ class CommunityController extends Controller
                                     ];
                                 }, 3);
                             } else {
-                                Log::info("username". $teamMember->user->username);
-                                Log::info("reqauest".$request->username);
                                 Log::error("Failed to soft delete team member. Team member ID does not exist or might be deleted and/or username does not match record.\n");
 
                                 return $this->errorResponse($this->getPredefinedResponse('default', null));

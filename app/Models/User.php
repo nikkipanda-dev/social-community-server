@@ -62,4 +62,12 @@ class User extends Authenticatable
     public function discussionPosts() {
         return $this->hasMany(DiscussionPost::class);
     }
+
+    public function events() {
+        return $this->hasMany(Event::class);
+    }
+
+    public function reports() {
+        return $this->hasMany(Report::class);
+    }
 }
