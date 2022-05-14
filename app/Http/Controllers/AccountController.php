@@ -264,6 +264,32 @@ class AccountController extends Controller
         }
     }
 
+    public function getUser(Request $request) {
+        Log::info("Entering AccountController getUser...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            $user = User::where('username', $request->username)->first();
+
+            if ($user) {
+                Log::info("Successfully retrieved user ID ".$user->id.". Leaving AccountController getUser...");
+
+                return $this->successResponse('details', $user->only(['first_name', 'last_name', 'username']));
+            } else {
+                Log::error("Failed to retrieve user details. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('not found', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve user details. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
     public function getAdministrators() {
         Log::info("Entering AccountController getAdministrators...");
 
