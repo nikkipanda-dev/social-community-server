@@ -22,6 +22,8 @@ use App\Http\Controllers\ReportController;
 |
 */
 
+Route::post('test', [AccountController::class, 'test']);
+
 Route::post('login', [AuthController::class, 'authenticate']);
 
 // Account
@@ -58,6 +60,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Microblog entries
     Route::get('microblog-entries', [MicroblogEntryController::class, 'getMicroblogEntries']);
+    Route::get('microblog-entries/user', [MicroblogEntryController::class, 'getUserMicroblogEntries']);
+    Route::get('microblog-entries/user/paginate', [MicroblogEntryController::class, 'getPaginatedUserMicroblogEntries']);
+    Route::post('microblog-entries/user/store', [MicroblogEntryController::class, 'storeMicroblogEntry']);
 
     // Journal entries
     Route::get('journal-entries', [JournalEntryController::class, 'getJournalEntries']);

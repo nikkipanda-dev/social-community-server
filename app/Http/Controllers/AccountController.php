@@ -8,6 +8,7 @@ use App\Mail\InvitationMail;
 use Illuminate\Support\Facades\Mail;
 use App\Models\InvitationToken;
 use App\Models\User;
+use App\Models\DiscussionPost;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use App\Traits\ResponseTrait;
@@ -397,5 +398,30 @@ class AccountController extends Controller
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
+    }
+
+    public function test(Request $request) {
+        Log::info($request->body[0] === '{' || $request->body[0] === '[');
+        // Log::info(json_decode($request->body, true, 5));
+
+        $test = gettype(json_decode(json_encode($request->body)));
+
+        Log::info($test);
+
+        $post = new DiscussionPost();
+
+        $post->user_id = 1;
+        $post->title = "Tiptap";
+        $post->body = $request->body;
+        $post->is_hobby = false;
+        $post->is_wellbeing = false;
+        $post->is_career = false;
+        $post->is_coaching = false;
+        $post->is_science_and_tech = false;
+        $post->is_social_cause = false;
+
+        $post->save();
+
+        return response(json_encode($post->body), 200);
     }
 }
