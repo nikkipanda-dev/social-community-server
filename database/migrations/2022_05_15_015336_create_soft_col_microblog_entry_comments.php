@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateSlugColMicroblogEntriesTable extends Migration
+class CreateSoftColMicroblogEntryComments extends Migration
 {
     /**
      * Run the migrations.
@@ -13,8 +13,8 @@ class CreateSlugColMicroblogEntriesTable extends Migration
      */
     public function up()
     {
-        Schema::table('microblog_entries', function (Blueprint $table) {
-            $table->string('slug')->unique()->after('body');
+        Schema::table('microblog_entry_comments', function (Blueprint $table) {
+            $table->softDeletes();
         });
     }
 
@@ -25,8 +25,8 @@ class CreateSlugColMicroblogEntriesTable extends Migration
      */
     public function down()
     {
-        Schema::table('microblog_entries', function (Blueprint $table) {
-            $table->dropColumn('slug');
+        Schema::table('microblog_entry_comments', function (Blueprint $table) {
+            $table->dropSoftDeletes();
         });
     }
 }

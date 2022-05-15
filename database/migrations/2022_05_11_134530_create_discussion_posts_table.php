@@ -24,6 +24,7 @@ class CreateDiscussionPostsTable extends Migration
             $table->boolean('is_coaching');
             $table->boolean('is_science_and_tech');
             $table->boolean('is_social_cause');
+            $table->string('slug');
             $table->timestamps();
         });
     }

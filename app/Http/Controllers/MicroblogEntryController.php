@@ -5,14 +5,16 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\MicroblogEntry;
+use App\Models\MicroblogEntryComment;
 use App\Models\MicroblogEntryHeart;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
+use App\Traits\PostTrait;
 use Illuminate\Support\Facades\Log;
 
 class MicroblogEntryController extends Controller
 {
-    use ResponseTrait, AuthTrait;
+    use ResponseTrait, AuthTrait, PostTrait;
     
     public function getMicroblogEntries() {
         Log::info("Entering MicroblogEntryController getMicroblogEntries...");
@@ -61,6 +63,7 @@ class MicroblogEntryController extends Controller
                     
                     foreach($microblogEntries as $entry) {
                         $entry['hearts'] = $this->getMicroblogEntryHearts($entry->id);
+                        $entry['comments'] = $this->getMicroblogEntryComments($entry->id);
                         unset($entry->id);
                         unset($entry->updated_at);
                         unset($entry->deleted_at);
@@ -98,13 +101,19 @@ class MicroblogEntryController extends Controller
             $user = User::where('username', $request->username)->first();
 
             if ($user) {
-                $microblogEntries = MicroblogEntry::latest()->with('user:id,first_name,last_name,username')->where('user_id', $user->id)->offset(intval($request->offset, 10))->limit(intval($request->limit, 10))->get();
+                $microblogEntries = MicroblogEntry::latest()
+                                                  ->with('user:id,first_name,last_name,username')
+                                                  ->where('user_id', $user->id)
+                                                  ->offset(intval($request->offset, 10))
+                                                  ->limit(intval($request->limit, 10))
+                                                  ->get();
 
                 if (count($microblogEntries) > 0) {
                     Log::info("Successfully retrieved user's microblog entries. Leaving MicroblogEntryController getPaginatedUserMicroblogEntries...");
 
                     foreach ($microblogEntries as $entry) {
                         $entry['hearts'] = $this->getMicroblogEntryHearts($entry->id);
+                        $entry['comments'] = $this->getMicroblogEntryComments($entry->id);
                         unset($entry->id);
                         unset($entry->updated_at);
                         unset($entry->deleted_at);
@@ -144,10 +153,23 @@ class MicroblogEntryController extends Controller
                 if ($user) {
                     foreach ($user->tokens as $token) {
                         if ($token->tokenable_id === $user->id) {
+                            $isUnique = false;
+                            $microblogEntrySlug = null;
+
                             $microblogEntry = new MicroblogEntry();
 
                             $microblogEntry->user_id = $user->id;
                             $microblogEntry->body = $request->body;
+
+                            do {
+                                $microblogEntrySlug = $this->generateSlug();
+
+                                if (!(MicroblogEntry::where('slug', $microblogEntrySlug)->first())) {
+                                    $isUnique = true;
+                                }
+                            } while (!($isUnique));
+
+                            $microblogEntry->slug = $microblogEntrySlug;
 
                             $microblogEntry->save();
 
@@ -181,28 +203,6 @@ class MicroblogEntryController extends Controller
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
-    }
-
-    public function getMicroblogEntryHearts($id) {
-        Log::info("Entering MicroblogEntryController getMicroblogEntryHearts...");
-
-        $heartCount = null;
-
-        try {
-            $microblogEntryHearts = MicroblogEntryHeart::where('microblog_entry_id', $id)
-                                                       ->where('is_heart', true)
-                                                       ->get();
-
-            if (count($microblogEntryHearts) > 0) {
-                $heartCount = count($microblogEntryHearts);
-            }
-        } catch (\Exception $e) {
-            Log::error("Failed to retrieve heart count. ".$e->getMessage().".\n");
-        }
-
-        Log::info("count ".$heartCount);
-
-        return $heartCount;
     }
 
     public function updateMicroblogEntryHeart(Request $request) {
@@ -258,7 +258,7 @@ class MicroblogEntryController extends Controller
 
                                 return $this->successResponse('details', $this->getMicroblogEntryHearts($microblogEntry->id));
                             } else {
-                                Log::error("Failed to update microblog entry heart. Microblog does not exist or might be deleted.\n");
+                                Log::error("Failed to update microblog entry heart. Microblog post does not exist or might be deleted.\n");
 
                                 return $this->errorResponse("Microblog post does not exist.");
                             }
@@ -266,10 +266,95 @@ class MicroblogEntryController extends Controller
                             break;
                         }
                     }
+                } else {
+                    Log::error("Failed to update microblog entry heart. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
                 }
+            } else {
+                Log::error("Failed to update microblog entry heart. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
             }
         } catch (\Exception $e) {
             Log::error("Failed to update microblog entry heart. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function storeMicroblogEntryComment(Request $request) {
+        Log::info("Entering MicroblogEntryController storeMicroblogEntryComment...");
+     
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|exists:microblog_entries',
+            'body' => 'bail|required|string|min:2,10000',
+        ]);
+        
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+
+                            $microblogEntry = MicroblogEntry::where('slug', $request->slug)->first();
+
+                            if ($microblogEntry) {
+                                $isUnique = false;
+                                $microblogEntryCommentSlug = null;
+
+                                $microblogEntryComment = new MicroblogEntryComment();
+
+                                $microblogEntryComment->microblog_entry_id = $microblogEntry->id;
+                                $microblogEntryComment->user_id = $user->id;
+                                $microblogEntryComment->body = $request->body;
+
+                                do {
+                                    $microblogEntryCommentSlug = $this->generateSlug();
+
+                                    if (!(MicroblogEntryComment::where('slug', $microblogEntryCommentSlug)->first())) {
+                                        $isUnique = true;
+                                    }
+                                } while (!($isUnique));
+
+                                $microblogEntryComment->slug = $microblogEntryCommentSlug;
+
+                                $microblogEntryComment->save();
+
+                                if ($microblogEntryComment) {
+                                    Log::info("Successfully stored new microblog entry comment ID ".$microblogEntryComment->id. ". Leaving MicroblogEntryController storeMicroblogEntryComment...\n");
+
+                                    return $this->successResponse('details', $this->getMicroblogEntryComments($microblogEntry->id));
+                                } else {
+                                    Log::error("Failed to store new microblog entry comment.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+
+                            } else {
+                                Log::error("Failed to store new microblog entry comment. Microblog post does not exist or might be deleted.\n");
+
+                                return $this->errorResponse("Microblog post does not exist.");
+                            }
+
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to store new microblog entry comment. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to store new microblog entry comment. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to store new microblog entry comment. ".$e->getMessage().".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }

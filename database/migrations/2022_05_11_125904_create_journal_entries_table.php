@@ -18,6 +18,7 @@ class CreateJournalEntriesTable extends Migration
             $table->foreignId('user_id')->constrained()->onUpdate('cascade')->onDelete('cascade');
             $table->string('title');
             $table->text('body');
+            $table->string('slug');
             $table->timestamps();
         });
     }
