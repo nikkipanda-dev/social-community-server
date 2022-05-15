@@ -162,28 +162,33 @@ class MicroblogEntryController extends Controller
                 if ($user) {
                     foreach ($user->tokens as $token) {
                         if ($token->tokenable_id === $user->id) {
-
-                            $microblogEntry = MicroblogEntry::with('microblogEntryComments')
+                            $microblogEntry = MicroblogEntry::with(['microblogEntryComments' => function($q) {
+                                                                $q->orderBy('created_at', 'desc');
+                                                            }, 'microblogEntryComments.user:id,first_name,last_name,username'])
                                                             ->where('slug', $request->slug)
                                                             ->first();
                             
                             if ($microblogEntry) {
-                                $comments = $this->getMicroblogEntryComments($microblogEntry->id);
-
-                                if ($comments) {
-                                    foreach($comments as $comment) {
+                                if (count($microblogEntry->microblogEntryComments) > 0) {
+                                    foreach ($microblogEntry->microblogEntryComments as $comment) {
                                         $comment['hearts'] = $this->getMicroblogEntryCommentHearts($comment->id, $user->id);
+                                        Log::info($comment);
+                                        unset($comment->id);
+                                        unset($comment->updated_at);
+                                        unset($comment->deleted_at);
+                                        unset($comment->user_id);
+                                        unset($comment->user->id);
                                     }
-                                }
 
-                                if ($comments && (count($comments)> 0)) {
-                                    Log::info("Successfully retrieved comments for microblog ID ".$microblogEntry->id. ". Leaving MicroblogEntryController getUserMicroblogEntryComments...\n");
+                                    if (count($microblogEntry->microblogEntryComments) > 0) {
+                                        Log::info("Successfully retrieved comments for microblog ID " . $microblogEntry->id . ". Leaving MicroblogEntryController getUserMicroblogEntryComments...\n");
 
-                                    return $this->successResponse("details", $comments);
-                                } else {
-                                    Log::info("No comments to show for microblog entry ID ".$microblogEntry->id.". No action needed.\n");
+                                        return $this->successResponse("details", $microblogEntry->microblogEntryComments);
+                                    } else {
+                                        Log::info("No comments to show for microblog entry ID " . $microblogEntry->id . ". No action needed.\n");
 
-                                    return $this->errorResponse("No comments to show.");
+                                        return $this->errorResponse("No comments to show.");
+                                    }
                                 }
                             } else {
                                 Log::error("Failed to retrieve microblog entry comments. Microblog entry does not exist or might be deleted.\n");
@@ -206,6 +211,78 @@ class MicroblogEntryController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to retrieve microblog entry comments. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+    
+    public function getPaginatedUserMicroblogEntryComments(Request $request) {
+        Log::info("Entering MicroblogEntryController getPaginatedUserMicroblogEntryComments...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|exists:microblog_entries',
+            'offset' => 'bail|numeric',
+            'limit' => 'bail|numeric',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $microblogEntry = MicroblogEntry::with(['microblogEntryComments' => function ($q) use($request) {
+                                                                $q->orderBy('created_at', 'desc')
+                                                                  ->offset($request->offset)
+                                                                  ->limit($request->limit);
+                                                             }, 'microblogEntryComments.user:id,first_name,last_name,username'])
+                                                            ->where('slug', $request->slug)
+                                                            ->first();
+
+                            if ($microblogEntry) {
+                                if (count($microblogEntry->microblogEntryComments) > 0) {
+                                    foreach ($microblogEntry->microblogEntryComments as $comment) {
+                                        $comment['hearts'] = $this->getMicroblogEntryCommentHearts($comment->id, $user->id);
+                                        unset($comment->id);
+                                        unset($comment->updated_at);
+                                        unset($comment->deleted_at);
+                                        unset($comment->user_id);
+                                        unset($comment->user->id);
+                                    }
+
+                                    if (count($microblogEntry->microblogEntryComments) > 0) {
+                                        Log::info("Successfully retrieved paginated comments for microblog ID " . $microblogEntry->id . ". Leaving MicroblogEntryController getUserMicroblogEntryComments...\n");
+
+                                        return $this->successResponse("details", $microblogEntry->microblogEntryComments);
+                                    } else {
+                                        Log::info("No comments to show for microblog entry ID " . $microblogEntry->id . ". No action needed.\n");
+
+                                        return $this->errorResponse("No comments to show.");
+                                    }
+                                }
+                            } else {
+                                Log::error("Failed to retrieve paginated microblog entry comments. Microblog entry does not exist or might be deleted.\n");
+
+                                return $this->errorResponse("Microblog post does not exist.");
+                            }
+
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to retrieve paginated microblog entry comments. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to retrieve paginated microblog entry comments. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve paginated microblog entry comments. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
