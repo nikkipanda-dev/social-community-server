@@ -13,4 +13,8 @@ class MicroblogEntryHeart extends Model
     public function microblogEntry() {
         return $this->belongsTo(MicroblogEntry::class);
     }
+
+    public function user() {
+        return $this->belongsTo(User::class);
+    }
 }

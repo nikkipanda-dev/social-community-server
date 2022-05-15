@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Models\MicroblogEntry;
 use App\Models\MicroblogEntryComment;
+use App\Models\MicroblogEntryCommentHeart;
 use App\Models\MicroblogEntryHeart;
 use Illuminate\Support\Facades\Log;
 
@@ -14,24 +15,36 @@ trait PostTrait {
         return $rand;
     }
 
-    public function getMicroblogEntryHearts($id) {
+    public function getMicroblogEntryHearts($id, $userId) {
         Log::info("Entering PostTrait getMicroblogEntryHearts...");
 
-        $heartCount = null;
+        $heartDetails = [
+            'count' => 0,
+            'is_heart' => false,
+        ];
 
         try {
-            $microblogEntryHearts = MicroblogEntryHeart::where('microblog_entry_id', $id)
+            $microblogEntryHearts = MicroblogEntryHeart::with('user')
+                                                       ->where('microblog_entry_id', $id)
                                                        ->where('is_heart', true)
                                                        ->get();
 
             if (count($microblogEntryHearts) > 0) {
-                $heartCount = count($microblogEntryHearts);
+                foreach ($microblogEntryHearts as $heart) {
+                    if ($heart->user->id === $userId) {
+                        $heartDetails['is_heart'] = true;
+
+                        break;
+                    }
+                }
+
+                $heartDetails['count'] = count($microblogEntryHearts);
             }
         } catch (\Exception $e) {
             Log::error("Failed to retrieve heart count. " . $e->getMessage() . ".\n");
         }
 
-        return $heartCount;
+        return $heartDetails;
     }
 
     public function getMicroblogEntryComments($id) {
@@ -47,7 +60,6 @@ trait PostTrait {
 
             if (count($microblogEntryComments) > 0) {
                 foreach ($microblogEntryComments as $comment) {
-                    unset($comment->id);
                     unset($comment->updated_at);
                     unset($comment->deleted_at);
                     unset($comment->user->id);
@@ -60,5 +72,34 @@ trait PostTrait {
         }
 
         return $comments;
+    }
+
+    public function getMicroblogEntryCommentHearts($id, $userId) {
+        Log::info("Entering PostTrait getMicroblogEntryCommentHearts...");
+
+        $heartDetails = [];
+
+        try {
+            $microblogEntryCommentHearts = MicroblogEntryCommentHeart::with('user')
+                                                                     ->where('comment_id', $id)
+                                                                     ->where('is_heart', true)
+                                                                     ->get();
+
+            if (count($microblogEntryCommentHearts) > 0) {
+                foreach ($microblogEntryCommentHearts as $heart) {
+                    if ($heart->user->id === $userId) {
+                        $heartDetails['is_heart'] = true;
+
+                        break;
+                    }
+                }
+
+                $heartDetails['count'] = count($microblogEntryCommentHearts);
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve comment heart count. " . $e->getMessage() . ".\n");
+        }
+
+        return $heartDetails;
     }
 }

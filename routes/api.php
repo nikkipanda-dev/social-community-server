@@ -66,7 +66,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('microblog-entries/user/store', [MicroblogEntryController::class, 'storeMicroblogEntry']);
     Route::post('microblog-entries/user/entry/hearts', [MicroblogEntryController::class, 'getMicroblogEntryHearts']);
     Route::post('microblog-entries/user/entry/hearts/update', [MicroblogEntryController::class, 'updateMicroblogEntryHeart']);
+    Route::get('microblog-entries/user/entry/comments', [MicroblogEntryController::class, 'getUserMicroblogEntryComments']);
+    Route::get('microblog-entries/user/entry/comment/hearts', [MicroblogEntryController::class, 'getUserMicroblogEntryCommentHearts']);
     Route::post('microblog-entries/user/entry/comment/store', [MicroblogEntryController::class, 'storeMicroblogEntryComment']);
+    Route::post('microblog-entries/user/entry/comment/hearts/update', [MicroblogEntryController::class, 'updateMicroblogEntryCommentHeart']);
 
     // Journal entries
     Route::get('journal-entries', [JournalEntryController::class, 'getJournalEntries']);
