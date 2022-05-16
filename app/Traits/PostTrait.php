@@ -17,6 +17,14 @@ trait PostTrait {
         return $rand;
     }
 
+    public function getMicroblogEntry($slug) {
+        Log::info("Entering PostTrait getMicroblogEntry...");
+
+        $microblogEntry = MicroblogEntry::where('slug', $slug)->first();
+
+        return $microblogEntry;
+    }
+
     public function getMicroblogEntryHearts($id, $userId) {
         Log::info("Entering PostTrait getMicroblogEntryHearts...");
 

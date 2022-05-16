@@ -353,6 +353,145 @@ class MicroblogEntryController extends Controller
         }
     }
 
+    public function updateMicroblogEntry(Request $request) {
+        Log::info("Entering MicroblogEntryController updateMicroblogEntry...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'body' => 'bail|required|between:2,300',
+            'slug' => 'bail|required|exists:microblog_entries',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $microblogEntry = $this->getMicroblogEntry($request->slug);
+
+                            if (!$microblogEntry) {
+                                Log::error("Failed to update microblog entry. Microblog entry does not exist or might be deleted.\n");
+
+                                return $this->errorResponse("Microblog post does not exist.");
+                            }
+
+                            if ($microblogEntry) {
+                                if ($microblogEntry->user_id !== $user->id) {
+                                    Log::error("Failed to update microblog entry. Author of user ID ".$microblogEntry->user_id." does not match authenticated user ID ".$user->id.".\n");
+
+                                    return $this->errorResponse("Unauthorized action.");
+                                }
+
+                                if ($microblogEntry) {
+                                    $microblogEntry->body = $request->body;
+
+                                    $microblogEntry->save();
+                                }
+
+                                if (!($microblogEntry->wasChanged('body'))) {
+                                    Log::notice("Microblog entry ID ".$microblogEntry->id." was not changed. No action needed.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('not changed', 'microblog post'));
+                                }
+
+                                if ($microblogEntry->wasChanged('body')) {
+                                    Log::info("Successfully updated microblog entry ID " . $microblogEntry->id . ". Leaving MicroblogEntryController updateMicroblogEntry...\n");
+
+                                    return $this->successResponse("details", $microblogEntry->only('body'));
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to update microblog entry. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to update microblog entry. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update microblog entry. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function destroyMicroblogEntry(Request $request) {
+        Log::info("Entering MicroblogEntryController destroyMicroblogEntry...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|exists:microblog_entries',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $microblogEntry = $this->getMicroblogEntry($request->slug);
+
+                            if (!$microblogEntry) {
+                                Log::error("Failed to destroy microblog entry. Microblog entry does not exist or might be deleted.\n");
+
+                                return $this->errorResponse("Microblog post does not exist.");
+                            }
+
+                            if ($microblogEntry) {
+                                if ($microblogEntry->user_id !== $user->id) {
+                                    Log::error("Failed to destroy microblog entry. Author of user ID " . $microblogEntry->user_id . " does not match authenticated user ID " . $user->id . ".\n");
+
+                                    return $this->errorResponse("Unauthorized action.");
+                                }
+
+                                $originalSlug = $microblogEntry->getOriginal('slug');
+
+                                $microblogEntry->delete();
+
+                                $microblogEntry = $this->getMicroblogEntry($originalSlug);
+
+                                if ($microblogEntry) {
+                                    Log::error("Failed to destroy microblog entry ID ".$microblogEntry->id.".\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+
+                                if (!($microblogEntry)) {
+                                    Log::info("Successfully soft deleted microblog with slug ".$originalSlug. ". Leaving MicroblogEntryController destroyMicroblogEntry...\n");
+
+                                    return $this->successResponse("details", $originalSlug);
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to destroy microblog entry. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to destroy microblog entry. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to destroy microblog entry. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
     public function updateMicroblogEntryHeart(Request $request) {
         Log::info("Entering MicroblogEntryController updateMicroblogEntryHeart...");
 

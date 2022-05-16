@@ -64,6 +64,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('microblog-entries/user', [MicroblogEntryController::class, 'getUserMicroblogEntries']);
     Route::get('microblog-entries/user/paginate', [MicroblogEntryController::class, 'getPaginatedUserMicroblogEntries']);
     Route::post('microblog-entries/user/store', [MicroblogEntryController::class, 'storeMicroblogEntry']);
+    Route::post('microblog-entries/user/entry/update', [MicroblogEntryController::class, 'updateMicroblogEntry']);
+    Route::post('microblog-entries/user/entry/destroy', [MicroblogEntryController::class, 'destroyMicroblogEntry']);
     Route::get('microblog-entries/user/entry/most-loved', [MicroblogEntryController::class, 'getMostLovedEntry']);
     Route::get('microblog-entries/user/entry/most-active', [MicroblogEntryController::class, 'getMostActiveEntry']);
     Route::post('microblog-entries/user/entry/hearts', [MicroblogEntryController::class, 'getMicroblogEntryHearts']);
