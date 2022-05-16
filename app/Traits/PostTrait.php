@@ -3,9 +3,11 @@
 namespace App\Traits;
 
 use App\Models\MicroblogEntry;
+use App\Models\User;
 use App\Models\MicroblogEntryComment;
 use App\Models\MicroblogEntryCommentHeart;
 use App\Models\MicroblogEntryHeart;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
 trait PostTrait {
@@ -101,5 +103,65 @@ trait PostTrait {
         }
 
         return $heartDetails;
+    }
+
+    public function getMicroblogMostLovedEntry($userId) {
+        Log::info("User ID ".$userId);
+        Log::info("Entering PostTrait getMicroblogMostLovedEntry...");
+
+        $mostLovedMicroblogEntry = null;
+
+        try {
+            $microblogEntries = MicroblogEntry::withCount(['microblogEntryHearts' => function (Builder $q) {
+                $q->where('is_heart', true);
+            }])->where('user_id', $userId)->orderBy('microblog_entry_hearts_count', 'desc')->get();
+
+            if ($microblogEntries) {
+                if (count($microblogEntries) > 0) {
+                    $mostLovedMicroblogEntry = $microblogEntries->first();
+
+                    if ($mostLovedMicroblogEntry) {
+                        $mostLovedMicroblogEntry = $mostLovedMicroblogEntry->only(['body', 'slug', 'created_at', 'microblog_entry_hearts_count']);
+                    }
+                }
+            } else {
+                Log::error("Failed to retrieve most loved microblog entry. User does not exist or might be deleted.\n");
+            }
+            
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve most loved microblog entry. ".$e->getMessage().".\n");
+        }
+
+        return $mostLovedMicroblogEntry;
+    }
+
+    public function getMicroblogMostActiveEntry($userId) {
+        Log::info("Entering PostTrait getMicroblogMostActiveEntry...");
+
+        $mostActiveMicroblogEntry = null;
+
+        try {
+            $microblogEntries = MicroblogEntry::withCount('microblogEntryComments')
+                                              ->where('user_id', $userId)
+                                              ->orderBy('microblog_entry_comments_count', 'desc')
+                                              ->get();
+
+            if ($microblogEntries) {
+                if (count($microblogEntries) > 0) {
+                    $mostActiveMicroblogEntry = $microblogEntries->first();
+
+                    if ($mostActiveMicroblogEntry) {
+                        Log::info($mostActiveMicroblogEntry);
+                        $mostActiveMicroblogEntry = $mostActiveMicroblogEntry->only(['body', 'slug', 'created_at', 'microblog_entry_comments_count']);
+                    }
+                }
+            } else {
+                Log::error("Failed to retrieve most active microblog entry. User does not exist or might be deleted.\n");
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve most active microblog entry. " . $e->getMessage() . ".\n");
+        }
+
+        return $mostActiveMicroblogEntry;
     }
 }

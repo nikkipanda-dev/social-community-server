@@ -105,7 +105,7 @@ class MicroblogEntryController extends Controller
             $user = User::where('username', $request->username)->first();
             $authUser = User::where('username', $request->auth_username)->first();
 
-            if ($user) {
+            if ($user && $authUser) {
                 $microblogEntries = MicroblogEntry::latest()
                                                   ->with('user:id,first_name,last_name,username')
                                                   ->where('user_id', $user->id)
@@ -586,6 +586,102 @@ class MicroblogEntryController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to update microblog entry comment's heart state. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function getMostLovedEntry(Request $request) {
+        Log::info("Entering MicroblogEntryController getMicroblogMostLovedEntry...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'auth_username' => 'bail|required|exists:users,username',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $authUser = User::where('username', $request->auth_username)->first();
+                $user = User::where('username', $request->username)->first();
+
+                if ($authUser && $user) {
+                    foreach ($authUser->tokens as $token) {
+                        if ($token->tokenable_id === $authUser->id) {
+
+                            $microblogMostLovedEntry = $this->getMicroblogMostLovedEntry($user->id);
+
+                            if ($microblogMostLovedEntry) {
+                                Log::info("Successfully retrieved most loved microblog entry with slug ". $microblogMostLovedEntry['slug'].". MicroblogEntryController getMicroblogMostLovedEntry...\n");
+
+                                return $this->successResponse("details", $microblogMostLovedEntry);
+                            } else {
+                                Log::notice("No loved microblog entry yet. No action needed.\n");
+
+                                return $this->errorResponse("No loved microblog post yet.");
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to retrieve most loved microblog entry. Authenticated user and/or author does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to retrieve most loved microblog entry. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve most loved microblog entry. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        } 
+    }
+
+    public function getMostActiveEntry(Request $request) {
+        Log::info("Entering MicroblogEntryController getMostActiveEntry...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'auth_username' => 'bail|required|exists:users,username',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $authUser = User::where('username', $request->auth_username)->first();
+                $user = User::where('username', $request->username)->first();
+
+                if ($authUser && $user) {
+                    foreach ($authUser->tokens as $token) {
+                        if ($token->tokenable_id === $authUser->id) {
+
+                            $microblogMostActiveEntry = $this->getMicroblogMostActiveEntry($user->id);
+
+                            if ($microblogMostActiveEntry) {
+                                Log::info("Successfully retrieved most active microblog entry with slug " . $microblogMostActiveEntry['slug'] . ". MicroblogEntryController getMostActiveEntry...\n");
+
+                                return $this->successResponse("details", $microblogMostActiveEntry);
+                            } else {
+                                Log::notice("No active microblog entry yet. No action needed.\n");
+
+                                return $this->errorResponse("No active microblog post yet.");
+                            }
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to retrieve most active microblog entry. Authenticated user and/or author does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to retrieve most active microblog entry. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve most active microblog entry. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
