@@ -27,6 +27,7 @@ class EventFactory extends Factory
             'is_coaching' => false,
             'is_science_and_tech' => false,
             'is_social_cause' => false,
+            'slug' => $this->faker->uuid(),
             'created_at' => $this->faker->dateTimeBetween('-1 year', '-6 months'),
         ];
     }

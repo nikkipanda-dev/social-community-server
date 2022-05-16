@@ -16,18 +16,19 @@ class AuthController extends Controller
     public function authenticate(Request $request) {
         Log::info("Entering AuthController authenticate...");
 
+        Log::info($request->all());
+
         $this->validate($request, [
-            'email' => 'bail|required|exists:users',
-            'password' => 'required',
+            'email' => 'bail|required|email',
+            'password' => 'bail|required',
             'remember' => 'nullable|in:true,false',
         ]);
 
         try {
+            Log::info($request->all());
             $user = User::where('email', $request->email)->first();
 
             if ($user) {
-                Log::info("User:");
-                Log::info($user);
                 if (Auth::attempt(['email' => $request->email, 'password' => $request->password], $request->remember)) {
                     $token = $user->createToken('auth_user')->plainTextToken;
 
@@ -43,11 +44,15 @@ class AuthController extends Controller
 
                         return $this->errorResponse("Please try again in a few seconds or contact us directly for assistance.");
                     }
+                } else {
+                    Log::error("Failed to authenticate. Incorrect email and/or password.\n");
+
+                    return $this->errorResponse("Incorrect email and/or password. Please try again.");
                 }
             } else {
                 Log::error("Failed to authenticate. User does not exist or might be deleted.\n");
 
-                return $this->errorResponse("User does not exist.");
+                return $this->errorResponse("Your email address does not exist in our system.");
             }
         } catch (\Exception $e) {
             Log::error("Failed to authenticate. ".$e->getMessage().".\n");

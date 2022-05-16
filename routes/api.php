@@ -22,6 +22,8 @@ use App\Http\Controllers\ReportController;
 |
 */
 
+Route::post('test', [AccountController::class, 'test']);
+
 Route::post('login', [AuthController::class, 'authenticate']);
 
 // Account
@@ -33,6 +35,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Account
     Route::get('search-user', [AccountController::class, 'searchUser']);
+    Route::get('user', [AccountController::class, 'getUser']);
     Route::post('invite', [AccountController::class, 'invite']);
     Route::get('users', [AccountController::class, 'getUsers']);
     Route::get('administrators', [AccountController::class, 'getAdministrators']);
@@ -58,6 +61,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Microblog entries
     Route::get('microblog-entries', [MicroblogEntryController::class, 'getMicroblogEntries']);
+    Route::get('microblog-entries/user', [MicroblogEntryController::class, 'getUserMicroblogEntries']);
+    Route::get('microblog-entries/user/paginate', [MicroblogEntryController::class, 'getPaginatedUserMicroblogEntries']);
+    Route::post('microblog-entries/user/store', [MicroblogEntryController::class, 'storeMicroblogEntry']);
+    Route::get('microblog-entries/user/entry/most-loved', [MicroblogEntryController::class, 'getMostLovedEntry']);
+    Route::get('microblog-entries/user/entry/most-active', [MicroblogEntryController::class, 'getMostActiveEntry']);
+    Route::post('microblog-entries/user/entry/hearts', [MicroblogEntryController::class, 'getMicroblogEntryHearts']);
+    Route::post('microblog-entries/user/entry/hearts/update', [MicroblogEntryController::class, 'updateMicroblogEntryHeart']);
+    Route::get('microblog-entries/user/entry/comments', [MicroblogEntryController::class, 'getUserMicroblogEntryComments']);
+    Route::get('microblog-entries/user/entry/comments/paginate', [MicroblogEntryController::class, 'getPaginatedUserMicroblogEntryComments']);
+    Route::get('microblog-entries/user/entry/comment/hearts', [MicroblogEntryController::class, 'getUserMicroblogEntryCommentHearts']);
+    Route::post('microblog-entries/user/entry/comment/store', [MicroblogEntryController::class, 'storeMicroblogEntryComment']);
+    Route::post('microblog-entries/user/entry/comment/hearts/update', [MicroblogEntryController::class, 'updateMicroblogEntryCommentHeart']);
 
     // Journal entries
     Route::get('journal-entries', [JournalEntryController::class, 'getJournalEntries']);

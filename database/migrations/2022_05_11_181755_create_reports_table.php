@@ -24,6 +24,7 @@ class CreateReportsTable extends Migration
             $table->boolean('is_message');
             $table->string('category');
             $table->string('status');
+            $table->string('slug');
             $table->timestamps();
         });
     }

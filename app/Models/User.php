@@ -70,4 +70,16 @@ class User extends Authenticatable
     public function reports() {
         return $this->hasMany(Report::class);
     }
+
+    public function microblogEntryComments() {
+        return $this->hasMany(MicroblogEntryComment::class);
+    }
+
+    public function microblogEntryHearts() {
+        return $this->hasMany(MicroblogEntryHeart::class);
+    }
+
+    public function microblogEntryCommentHearts() {
+        return $this->hasMany(MicroblogEntryCommentHeart::class);
+    }
 }

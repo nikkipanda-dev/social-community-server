@@ -23,6 +23,7 @@ class ReportFactory extends Factory
             'is_message' => false,
             'category' => $this->faker->words(2, true),
             'status' => $this->faker->word(2, true),
+            'slug' => $this->faker->uuid(),
             'created_at' => $this->faker->dateTimeBetween('-2 years', 'now'),
         ];
     }

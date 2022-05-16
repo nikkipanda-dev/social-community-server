@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateBlogEntriesTable extends Migration
+class CreateMicroblogEntryHeartsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,12 +13,11 @@ class CreateBlogEntriesTable extends Migration
      */
     public function up()
     {
-        Schema::create('blog_entries', function (Blueprint $table) {
+        Schema::create('microblog_entry_hearts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('microblog_entry_id')->constrained()->onUpdate('cascade')->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onUpdate('cascade')->onDelete('cascade');
-            $table->string('title');
-            $table->text('body');
-            $table->string('slug')->unique();
+            $table->boolean('is_heart');
             $table->timestamps();
         });
     }
@@ -30,6 +29,6 @@ class CreateBlogEntriesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('blog_entries');
+        Schema::dropIfExists('microblog_entry_hearts');
     }
 }
