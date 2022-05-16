@@ -222,7 +222,6 @@ class MicroblogEntryController extends Controller
         $this->validate($request, [
             'username' => 'bail|required|exists:users',
             'slug' => 'bail|required|exists:microblog_entries',
-            'offset' => 'bail|numeric',
             'limit' => 'bail|numeric',
         ]);
 
@@ -235,7 +234,6 @@ class MicroblogEntryController extends Controller
                         if ($token->tokenable_id === $user->id) {
                             $microblogEntry = MicroblogEntry::with(['microblogEntryComments' => function ($q) use($request) {
                                                                 $q->orderBy('created_at', 'desc')
-                                                                  ->offset($request->offset)
                                                                   ->limit($request->limit);
                                                              }, 'microblogEntryComments.user:id,first_name,last_name,username'])
                                                             ->where('slug', $request->slug)
