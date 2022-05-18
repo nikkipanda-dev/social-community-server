@@ -49,13 +49,40 @@ trait FriendTrait {
 
         $invitations = [];
 
-        $users = Friend::with('users:id,first_name,last_name,username')->where('friend_id', $userId)->get();
+        $users = Friend::with('users:id,first_name,last_name,username')
+                       ->where('friend_id', $userId)
+                       ->where('status', 'pending')
+                       ->get();
 
         if ($users && (count($users) > 0)) {
             foreach ($users as $user) {
                 if ($user->users->first()) {
                     unset($user->users->first()->id);
                     $invitations[] = $user->users->first();
+                }
+            }
+        }
+
+        return $invitations;
+    }
+
+    public function getPaginatedInvitations($userId, $offset, $limit) {
+        Log::info("Entering FriendTrait getPaginatedInvitations...");
+
+        $invitations = [];
+
+        $friendInvitations = Friend::with('users:id,first_name,last_name,username')
+                                   ->where('friend_id', $userId)
+                                   ->where('status', 'pending')
+                                   ->offset(intval($offset, 10))
+                                   ->limit(intval($limit, 10))
+                                   ->get();
+
+        if ($friendInvitations && (count($friendInvitations) > 0)) {
+            foreach ($friendInvitations as $invitation) {
+                if ($invitation->users->first()) {
+                    unset($invitation->users->first()->id);
+                    $invitations[] = $invitation->users->first();
                 }
             }
         }

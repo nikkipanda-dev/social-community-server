@@ -37,7 +37,7 @@ class FriendController extends Controller
                     foreach ($authUser->tokens as $token) {
                         if ($token->tokenable_id === $authUser->id) {
                             $sender = $this->getFriendStatus($authUser->id, $user->id);
-                            $recipient = $this->getFriendStatus($authUser->id, $authUser->id);
+                            $recipient = $this->getFriendStatus($user->id, $authUser->id);
 
                             if ($sender || $recipient) {
                                 if ($sender === 'pending') {
@@ -345,6 +345,54 @@ class FriendController extends Controller
         }
     }
 
+    public function getPaginatedFriendInvitations(Request $request) {
+        Log::info("Entering FriendController getPaginatedFriendInvitations...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'offset' => 'bail|required|numeric',
+            'limit' => 'bail|required|numeric',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if (!($user)) {
+                    Log::error("Failed to retrieve paginated friend invitations. Authenticated user and/or author does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $friendInvitations = $this->getPaginatedInvitations($user->id, $request->offset, $request->limit);
+
+                            if (count($friendInvitations) === 0) {
+                                Log::notice("No additional friend invitations fetched. No action needed.\n");
+
+                                return $this->errorResponse(null);
+                            }
+
+                            if (count($friendInvitations) > 0) {
+                                Log::info("Successfully retrieved user ID " . $user->id . "'s paginated friend invitations. Leaving FriendController getPaginatedFriendInvitations...\n");
+
+                                return $this->successResponse("details", $friendInvitations);
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve paginated friend invitations. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
     public function destroyFriend(Request $request) {
         Log::info("Entering FriendController destroyFriend...");
 
@@ -415,7 +463,7 @@ class FriendController extends Controller
                                             }
 
                                             if (($originalStatus === 'accepted')) {
-                                                return $this->successResponse("details", "@".$originalUsername." was removed from your friends.");
+                                                return $this->successResponse("details", "@".(($originalUsername[(strlen($originalUsername) - 1)] === strtolower('s')) ? "'" : "'s")." was removed from your friends.");
                                             }
                                         }
                                     }
