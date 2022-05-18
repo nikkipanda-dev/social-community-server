@@ -7,6 +7,7 @@ use App\Http\Controllers\BlogEntryController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\DiscussionPostController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\FriendController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\MicroblogEntryController;
 use App\Http\Controllers\ReportController;
@@ -84,6 +85,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Events
     Route::get('events', [EventController::class, 'getEvents']);
+
+    // Friends
+    Route::get('friends/user/get-friend', [FriendController::class, 'getFriend']);
+    Route::get('friends/user/all', [FriendController::class, 'getAllFriends']);
+    Route::get('friends/user/invitations', [FriendController::class, 'getFriendInvitations']);
+    Route::post('friends/user/store', [FriendController::class, 'storeFriend']);
+    Route::post('friends/user/destroy', [FriendController::class, 'destroyFriend']);
+    Route::post('friends/user/accept', [FriendController::class, 'storeAcceptFriend']);
 
     // Report
     Route::get('reports', [ReportController::class, 'getReports']);
