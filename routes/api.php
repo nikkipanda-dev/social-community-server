@@ -89,6 +89,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Friends
     Route::get('friends/user/get-friend', [FriendController::class, 'getFriend']);
     Route::get('friends/user/all', [FriendController::class, 'getAllFriends']);
+    Route::get('friends/user/paginate', [FriendController::class, 'getPaginatedFriends']);
     Route::get('friends/user/invitations', [FriendController::class, 'getFriendInvitations']);
     Route::get('friends/user/invitations/paginate', [FriendController::class, 'getPaginatedFriendInvitations']);
     Route::post('friends/user/store', [FriendController::class, 'storeFriend']);
