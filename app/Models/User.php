@@ -82,4 +82,8 @@ class User extends Authenticatable
     public function microblogEntryCommentHearts() {
         return $this->hasMany(MicroblogEntryCommentHeart::class);
     }
+
+    public function friends() {
+        return $this->hasMany(Friend::class);
+    }
 }

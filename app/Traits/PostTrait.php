@@ -114,7 +114,6 @@ trait PostTrait {
     }
 
     public function getMicroblogMostLovedEntry($userId) {
-        Log::info("User ID ".$userId);
         Log::info("Entering PostTrait getMicroblogMostLovedEntry...");
 
         $mostLovedMicroblogEntry = null;
@@ -159,7 +158,6 @@ trait PostTrait {
                     $mostActiveMicroblogEntry = $microblogEntries->first();
 
                     if ($mostActiveMicroblogEntry) {
-                        Log::info($mostActiveMicroblogEntry);
                         $mostActiveMicroblogEntry = $mostActiveMicroblogEntry->only(['body', 'slug', 'created_at', 'microblog_entry_comments_count']);
                     }
                 }
