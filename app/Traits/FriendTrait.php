@@ -3,7 +3,6 @@
 namespace App\Traits;
 
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use App\Models\Friend;
 use Illuminate\Support\Facades\Log;
 
@@ -13,12 +12,70 @@ trait FriendTrait {
 
         $friends = [];
 
-        $user = User::with(['friends' => function($q) {
-            $q->where('status', 'accepted');
-        }])->find($userId);
+        $allFriends = Friend::has('users')
+                            ->has('friends')
+                            ->where('user_id', $userId)
+                            ->orWhere('friend_id', $userId)
+                            ->where('status', 'accepted')
+                            ->get();
 
-        if ($user && count($user->friends) > 0) {
-            $friends = $user->friends;
+
+        if ($allFriends && (count($allFriends) > 0)) {
+            foreach ($allFriends as $friend) {
+                if ($friend->users->first()->id !== $userId) {    
+                    $friends[] = [
+                        'username' => $friend->users->first()->username,
+                        'first_name' => $friend->users->first()->first_name,
+                        'last_name' => $friend->users->first()->last_name,
+                    ];
+                }
+
+                if ($friend->friends->first()->id !== $userId) {
+                    $friends[] = [
+                        'username' => $friend->friends->first()->username,
+                        'first_name' => $friend->friends->first()->first_name,
+                        'last_name' => $friend->friends->first()->last_name,
+                    ];
+                }
+            }
+        }
+
+        return $friends;
+    }
+
+    public function getFriendsPaginated($userId, $offset, $limit) {
+        Log::info("Entering FriendTrait getFriendsPaginated...");
+
+        $friends = [];
+
+        $allFriends = Friend::has('users')
+                            ->has('friends')
+                            ->where('user_id', $userId)
+                            ->orWhere('friend_id', $userId)
+                            ->where('status', 'accepted')
+                            ->offset(intval($offset, 10))
+                            ->limit(intval($limit, 10))
+                            ->get();
+
+
+        if ($allFriends && (count($allFriends) > 0)) {
+            foreach ($allFriends as $friend) {
+                if ($friend->users->first()->id !== $userId) {
+                    $friends[] = [
+                        'username' => $friend->users->first()->username,
+                        'first_name' => $friend->users->first()->first_name,
+                        'last_name' => $friend->users->first()->last_name,
+                    ];
+                }
+
+                if ($friend->friends->first()->id !== $userId) {
+                    $friends[] = [
+                        'username' => $friend->friends->first()->username,
+                        'first_name' => $friend->friends->first()->first_name,
+                        'last_name' => $friend->friends->first()->last_name,
+                    ];
+                }
+            }
         }
 
         return $friends;
@@ -49,13 +106,40 @@ trait FriendTrait {
 
         $invitations = [];
 
-        $users = Friend::with('users:id,first_name,last_name,username')->where('friend_id', $userId)->get();
+        $users = Friend::with('users:id,first_name,last_name,username')
+                       ->where('friend_id', $userId)
+                       ->where('status', 'pending')
+                       ->get();
 
         if ($users && (count($users) > 0)) {
             foreach ($users as $user) {
                 if ($user->users->first()) {
                     unset($user->users->first()->id);
                     $invitations[] = $user->users->first();
+                }
+            }
+        }
+
+        return $invitations;
+    }
+
+    public function getPaginatedInvitations($userId, $offset, $limit) {
+        Log::info("Entering FriendTrait getPaginatedInvitations...");
+
+        $invitations = [];
+
+        $friendInvitations = Friend::with('users:id,first_name,last_name,username')
+                                   ->where('friend_id', $userId)
+                                   ->where('status', 'pending')
+                                   ->offset(intval($offset, 10))
+                                   ->limit(intval($limit, 10))
+                                   ->get();
+
+        if ($friendInvitations && (count($friendInvitations) > 0)) {
+            foreach ($friendInvitations as $invitation) {
+                if ($invitation->users->first()) {
+                    unset($invitation->users->first()->id);
+                    $invitations[] = $invitation->users->first();
                 }
             }
         }
