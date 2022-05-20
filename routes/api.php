@@ -79,6 +79,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Journal entries
     Route::get('journal-entries', [JournalEntryController::class, 'getJournalEntries']);
+    Route::get('journal-entries/user/get-entry', [JournalEntryController::class, 'getJournalEntry']);
+    Route::get('journal-entries/user/all', [JournalEntryController::class, 'getUserJournalEntries']);
+    Route::get('journal-entries/user/paginate', [JournalEntryController::class, 'getPaginatedUserJournalEntries']);
+    Route::post('journal-entries/user/store', [JournalEntryController::class, 'storeJournalEntry']);
 
     // Discussion Posts
     Route::get('discussion-posts', [DiscussionPostController::class, 'getDiscussionPosts']);

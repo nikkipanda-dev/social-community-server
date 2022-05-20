@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\JournalEntry;
 use App\Models\MicroblogEntry;
 use App\Models\User;
 use App\Models\MicroblogEntryComment;
@@ -169,5 +170,13 @@ trait PostTrait {
         }
 
         return $mostActiveMicroblogEntry;
+    }
+
+    public function getJournalEntryRecord($slug) {
+        log::info("Entering PostTrait getJournalEntryRecord...");
+
+        $journalEntry = JournalEntry::where('slug', $slug)->first();
+
+        return $journalEntry;
     }
 }
