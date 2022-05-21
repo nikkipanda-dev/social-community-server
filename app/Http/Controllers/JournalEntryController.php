@@ -51,10 +51,7 @@ class JournalEntryController extends Controller
             $user = User::where('username', $request->username)->first();
 
             if ($user) {
-                $journalEntries = JournalEntry::latest()
-                                                ->with('user:id,first_name,last_name,username')
-                                                ->where('user_id', $user->id)
-                                                ->get();
+                $journalEntries = $this->getAllJournalEntries($user->id);
 
                 if (count($journalEntries) > 0) {
                     Log::info("Successfully retrieved user's journal entries. Leaving JournalEntryController getUserJournalEntries...");
@@ -98,12 +95,7 @@ class JournalEntryController extends Controller
             $user = User::where('username', $request->username)->first();
 
             if ($user) {
-                $journalEntries = JournalEntry::latest()
-                                              ->with('user:id,first_name,last_name,username')
-                                              ->where('user_id', $user->id)
-                                              ->offset(intval($request->offset, 10))
-                                              ->limit(intval($request->limit, 10))
-                                              ->get();
+                $journalEntries = $this->getChunkedJournalEntries($user->id, $request->offset, $request->limit);
 
                 if (count($journalEntries) > 0) {
                     Log::info("Successfully retrieved user's paginated journal entries. Leaving JournalEntryController getPaginatedUserJournalEntries...");
@@ -205,6 +197,133 @@ class JournalEntryController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to store journal entry. ".$e->getMessage().".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateJournalEntry(Request $request) {
+        Log::info("Entering JournalEntryController updateJournalEntry...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|string|exists:journal_entries',
+            'title' => 'bail|required|string|between:2,50',
+            'body' => 'bail|required|between:2,10000',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    if (!(($request->body[0] === '{') || ($request->body[0] === '['))) {
+                        Log::error("Failed to update journal entry. Body is not a JSON string.");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $journalEntry = $this->getJournalEntryRecord($request->slug);
+
+                            $journalEntry->title = $request->title;
+                            $journalEntry->body = $request->body;
+
+                            $journalEntry->save();
+
+                            if (!($journalEntry->wasChanged(['title', 'body']))) {
+                                Log::notice("Title and/or body was not changed No action needed.\n");
+
+                                return $this->errorResponse("Journal title and/or body not changed.");
+                            }
+
+                            if ($journalEntry) {
+                                Log::info("Successfully updated new journal entry ID " . $journalEntry->id . ". Leaving JournalEntryController updateJournalEntry....\n");
+
+                                return $this->successResponse("details", $journalEntry->only(['title', 'body', 'slug', 'created_at']));
+                            }
+
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to update journal entry. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to update journal entry. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update journal entry. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function destroyJournalEntry(Request $request) {
+        Log::info("Entering JournalEntryController destroyJournalEntry...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|string|exists:journal_entries',
+        ]);
+
+        try {
+            if ($this->hasAuthHeader($request->header('authorization'))) {
+                $user = User::where('username', $request->username)->first();
+
+                if ($user) {
+                    foreach ($user->tokens as $token) {
+                        if ($token->tokenable_id === $user->id) {
+                            $journalEntry = $this->getJournalEntryRecord($request->slug);
+
+                            if (!($journalEntry)) {
+                                Log::error("Failed to soft delete journal entry. Journal entry does not exist or might be deleted.\n");
+
+                                return $this->errorResponse("Journal entry does not exist.");
+                            }
+
+                            if ($journalEntry->user_id !== $user->id) {
+                                Log::error("Failed to soft delete journal entry. Author is neither the authenticated user nor an admin.\n");
+
+                                return $this->errorResponse($this->getPredefinedResponse('default', null));
+                            }
+
+                            if ($journalEntry) {
+                                $originalId = $journalEntry->getOriginal('id');
+
+                                $journalEntry->delete();
+
+                                if (JournalEntry::find($originalId)) {
+                                    Log::error("Failed to soft delete journal entry.\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
+
+                                Log::info("Successfully soft deleted new journal entry ID " . $originalId . ". Leaving JournalEntryController destroyJournalEntry....\n");
+
+                                return $this->successResponse("details", null);
+                            }
+
+                            break;
+                        }
+                    }
+                } else {
+                    Log::error("Failed to soft delete journal entry. User does not exist or might be deleted.\n");
+
+                    return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+                }
+            } else {
+                Log::error("Failed to soft delete journal entry. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to soft delete journal entry. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }

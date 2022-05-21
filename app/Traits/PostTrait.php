@@ -172,6 +172,27 @@ trait PostTrait {
         return $mostActiveMicroblogEntry;
     }
 
+    public function getAllJournalEntries($userId) {
+        $journalEntries = JournalEntry::latest()
+                                      ->with('user:id,first_name,last_name,username')
+                                      ->where('user_id', $userId)
+                                      ->get();
+
+        return $journalEntries;
+    }
+
+    public function getChunkedJournalEntries($userId, $offset, $limit)
+    {
+        $journalEntries = JournalEntry::latest()
+                                      ->with('user:id,first_name,last_name,username')
+                                      ->where('user_id', $userId)
+                                      ->offset(intval($offset, 10))
+                                      ->limit(intval($limit, 10))
+                                      ->get();
+
+        return $journalEntries;
+    }
+
     public function getJournalEntryRecord($slug) {
         log::info("Entering PostTrait getJournalEntryRecord...");
 
