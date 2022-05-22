@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\JournalEntry;
 use App\Models\MicroblogEntry;
 use App\Models\User;
+use App\Models\DiscussionPost;
 use App\Models\MicroblogEntryComment;
 use App\Models\MicroblogEntryCommentHeart;
 use App\Models\MicroblogEntryHeart;
@@ -181,8 +182,7 @@ trait PostTrait {
         return $journalEntries;
     }
 
-    public function getChunkedJournalEntries($userId, $offset, $limit)
-    {
+    public function getChunkedJournalEntries($userId, $offset, $limit) {
         $journalEntries = JournalEntry::latest()
                                       ->with('user:id,first_name,last_name,username')
                                       ->where('user_id', $userId)
@@ -199,5 +199,23 @@ trait PostTrait {
         $journalEntry = JournalEntry::where('slug', $slug)->first();
 
         return $journalEntry;
+    }
+
+    public function getAllDiscussionPosts() {
+        $discussions = DiscussionPost::latest()
+                                     ->with('user:id,first_name,last_name,username')
+                                     ->get();
+
+        return $discussions;
+    }
+
+    public function getChunkedDiscussionPosts($offset, $limit) {
+        $discussions = DiscussionPost::latest()
+                                      ->with('user:id,first_name,last_name,username')
+                                      ->offset(intval($offset, 10))
+                                      ->limit(intval($limit, 10))
+                                      ->get();
+
+        return $discussions;
     }
 }

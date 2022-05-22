@@ -88,6 +88,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Discussion Posts
     Route::get('discussion-posts', [DiscussionPostController::class, 'getDiscussionPosts']);
+    Route::get('discussion-posts/paginate', [DiscussionPostController::class, 'getPaginatedDiscussionPosts']);
+    Route::post('discussion-posts/store', [DiscussionPostController::class, 'storeDiscussionPost']);
 
     // Events
     Route::get('events', [EventController::class, 'getEvents']);
