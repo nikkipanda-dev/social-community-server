@@ -3,9 +3,9 @@
 namespace App\Traits;
 
 trait FileTrait {
-    public function generateFilename($folder, $user, $image) {
-        // TODO: generate filename 
-        // TODO: check folder if filename is unique
-        // TODO: return filename
+    public function generateFilename() {
+        $rand = bin2hex(random_bytes(30));
+
+        return $rand;
     }
 }
