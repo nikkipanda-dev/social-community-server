@@ -9,6 +9,7 @@ use App\Models\DiscussionPostReplyHeart;
 use App\Models\DiscussionPostSupporter;
 use App\Models\User;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
 use App\Traits\PostTrait;
@@ -266,6 +267,52 @@ class DiscussionPostController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to retrieve paginated discussion post replies. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function getTrendingDiscussionPosts(Request $request) {
+        Log::info("Entering DiscussionPostController getTrendingDiscussionPosts...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to retrieve trending discussion posts. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to retrieve trending discussion posts. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $posts = $this->getAllTrendingDiscussionPosts();
+
+                    if (count($posts) === 0) {
+                        Log::notice("No discussion posts to show. No action needed.\n");
+
+                        return $this->errorResponse("No discussion posts yet.");
+                    }
+
+                    Log::info("Successfully retrieved trending discussion posts. Leaving DiscussionPostController getTrendingDiscussionPosts...");
+
+                    return $this->successResponse("details", $posts);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve trending discussion posts. ".$e->getMessage().".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
@@ -639,6 +686,152 @@ class DiscussionPostController extends Controller
             }
         } catch (\Exception $e) {
             Log::error("Failed to store new discussion post. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateDiscussionPost(Request $request) {
+        Log::info("Entering DiscussionPostController updateDiscussionPost...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|string|exists:discussion_posts',
+            'title' => 'bail|required|string|between:2,50',
+            'body' => 'bail|required|string|between:2,10000',
+            'category' => 'bail|required|in:hobby,wellbeing,career,coaching,science_and_tech,social_cause',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update discussion post. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to update discussion post. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $post = DiscussionPost::where('slug', $request->slug)->first();
+
+                    if (!($post)) {
+                        Log::error("Failed to update discussion post. Post does not exist or might be deleted.\n");
+
+                        return $this->errorResponse("Post does not exist.");
+                    }
+
+                    if ($post->user_id !== $user->id) {
+                        Log::error("Failed to update discussion post. Authenticated user is not the author.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    $post->title = $request->title;
+                    $post->body = $request->body;
+                    $post->is_hobby = false;
+                    $post->is_wellbeing = false;
+                    $post->is_career = false;
+                    $post->is_coaching = false;
+                    $post->is_science_and_tech = false;
+                    $post->is_social_cause = false;
+                    $post->{'is_' . $request->category} = true;
+
+                    $post->save();
+
+                    if (!($post->wasChanged())) {
+                        Log::notice("Discussion post ID ".$post->id." was not changed. No action needed.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('not changed', "Discussion post"));
+                    }
+
+                    Log::info("Successfully updated post ID ".$post->id. ". Leaving DiscussionPostController updateDiscussionPost...\n");
+
+                    return $this->successResponse("details", [
+                        'title' => $post->title,
+                        'body' => $post->body,
+                        'user' => [
+                            'first_name' => $user->first_name,
+                            'last_name' => $user->last_name,
+                            'username' => $user->username,
+                        ],
+                        'category' => Str::headline(($request->category === "science_and_tech") ? "science & tech" : $request->category),
+                    ]);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update discussion post. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function destroyDiscussionPost(Request $request) {
+        Log::info("Entering DiscussionPostController destroyDiscussionPost...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'slug' => 'bail|required|string|exists:discussion_posts',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to soft delete discussion post. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to soft delete discussion post. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $post = DiscussionPost::where('slug', $request->slug)->first();
+
+                    if (!($post)) {
+                        Log::error("Failed to soft delete discussion post. Post does not exist or might be deleted.\n");
+
+                        return $this->errorResponse("Post does not exist.");
+                    }
+
+                    if ($post->user_id !== $user->id) {
+                        Log::error("Failed to soft delete discussion post. Authenticated user is not the author.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    $originalId = $post->getOriginal('id');
+
+                    $post->delete();
+
+                    if (DiscussionPost::find($originalId)) {
+                        Log::error("Failed to soft delete discussion post ID ".$originalId.".\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    Log::info("Successfully soft deleted discussion post ID " . $originalId . ". Leaving DiscussionPostController destroyDiscussionPost...\n");
+
+                    return $this->successResponse("details", null);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update discussion post. " . $e->getMessage() . ".\n");
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }

@@ -447,4 +447,45 @@ trait PostTrait {
 
         return $heartDetails;
     }
+
+    public function getAllTrendingDiscussionPosts() {
+        Log::info("Entering PostTrait getAllTrendingPosts...");
+
+        $posts = DiscussionPost::withCount(['discussionPostSupporters', 'discussionPostReplies'])
+                               ->orderBy('discussion_post_supporters_count', 'desc')
+                               ->orderBy('discussion_post_replies_count', 'desc')
+                               ->limit(5)
+                               ->get();
+
+        $discussions = [];
+        $categoryArr = ['hobby', 'wellbeing', 'career', 'coaching', 'science_and_tech', 'social_cause'];
+
+        if ($posts && (count($posts) > 0)) {
+            foreach ($posts as $post) {
+                if (($post->discussion_post_replies_count === 0) && ($post->discussion_post_supporters_count === 0)) {
+                    break;
+                }
+
+                $category = null;
+                foreach ($categoryArr as $type) {
+                    if ($post->{'is_' . $type} == true) {
+                        $category = ($type === 'science_and_tech') ? "science & tech" : $type;
+                        break;
+                    }
+                }
+
+                $discussions[] = [
+                    'title' => $post->title,
+                    'body' => $post->body,
+                    'slug' => $post->slug,
+                    'created_at' => $post->created_at,
+                    'replies' => $post->discussion_post_replies_count,
+                    'supporters' => $post->discussion_post_supporters_count,
+                    'category' => $category,
+                ];
+            }
+        }
+
+        return $discussions;
+    }
 }

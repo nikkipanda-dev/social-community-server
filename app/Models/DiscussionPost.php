@@ -17,4 +17,8 @@ class DiscussionPost extends Model
     public function discussionPostSupporters() {
         return $this->hasMany(DiscussionPostSupporter::class);
     }
+
+    public function discussionPostReplies() {
+        return $this->hasMany(DiscussionPostReply::class);
+    }
 }

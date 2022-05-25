@@ -14,6 +14,10 @@ class DiscussionPostReply extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function discussionPost() {
+        return $this->belongsTo(DiscussionPost::class);
+    }
+
     public function discussionPostReplyHearts() {
         return $this->hasMany(DiscussionPostReplyHeart::class);
     }

@@ -91,6 +91,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('discussion-posts/paginate', [DiscussionPostController::class, 'getPaginatedDiscussionPosts']);
     Route::get('discussion-posts/get', [DiscussionPostController::class, 'getDiscussionPost']);
     Route::post('discussion-posts/store', [DiscussionPostController::class, 'storeDiscussionPost']);
+    Route::post('discussion-posts/update', [DiscussionPostController::class, 'updateDiscussionPost']);
+    Route::post('discussion-posts/destroy', [DiscussionPostController::class, 'destroyDiscussionPost']);
+    Route::get('discussion-posts/trending/get', [DiscussionPostController::class, 'getTrendingDiscussionPosts']);
     Route::get('discussion-posts/replies/get', [DiscussionPostController::class, 'getDiscussionPostReplies']);
     Route::get('discussion-posts/replies/paginate', [DiscussionPostController::class, 'getPaginatedDiscussionPostReplies']);
     Route::post('discussion-posts/replies/store', [DiscussionPostController::class, 'storeDiscussionPostReplies']);
