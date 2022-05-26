@@ -53,6 +53,14 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
         ],
 
+        'do_space' => [
+            'driver' => 's3',
+            'key' => env('DO_SPACE_KEY_ID'),
+            'secret' => env('DO_SPACE_SECRET_ACCESS_KEY'),
+            'region' => env('DO_SPACE_DEFAULT_REGION'),
+            'bucket' => env('DO_SPACE_BUCKET'),
+            'endpoint' => env('DO_SPACE_ENDPOINT'),
+        ],
     ],
 
     /*

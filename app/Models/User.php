@@ -86,4 +86,16 @@ class User extends Authenticatable
     public function friends() {
         return $this->hasMany(Friend::class);
     }
+
+    public function discussionPostReplies() {
+        return $this->hasMany(DiscussionPostReply::class);
+    }
+
+    public function discussionPostReplyHearts() {
+        return $this->hasMany(DiscussionPostReplyHeart::class);
+    }
+
+    public function discussionPostSupporters() {
+        return $this->hasMany(DiscussionPostSupporter::class);
+    }
 }

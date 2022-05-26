@@ -88,6 +88,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Discussion Posts
     Route::get('discussion-posts', [DiscussionPostController::class, 'getDiscussionPosts']);
+    Route::get('discussion-posts/paginate', [DiscussionPostController::class, 'getPaginatedDiscussionPosts']);
+    Route::get('discussion-posts/get', [DiscussionPostController::class, 'getDiscussionPost']);
+    Route::post('discussion-posts/store', [DiscussionPostController::class, 'storeDiscussionPost']);
+    Route::post('discussion-posts/update', [DiscussionPostController::class, 'updateDiscussionPost']);
+    Route::post('discussion-posts/destroy', [DiscussionPostController::class, 'destroyDiscussionPost']);
+    Route::get('discussion-posts/trending/get', [DiscussionPostController::class, 'getTrendingDiscussionPosts']);
+    Route::get('discussion-posts/replies/get', [DiscussionPostController::class, 'getDiscussionPostReplies']);
+    Route::get('discussion-posts/replies/paginate', [DiscussionPostController::class, 'getPaginatedDiscussionPostReplies']);
+    Route::post('discussion-posts/replies/store', [DiscussionPostController::class, 'storeDiscussionPostReplies']);
+    Route::post('discussion-posts/replies/update', [DiscussionPostController::class, 'updateDiscussionPostReplies']);
+    Route::post('discussion-posts/replies/destroy', [DiscussionPostController::class, 'destroyDiscussionReplies']);
+    Route::get('discussion-posts/support/get', [DiscussionPostController::class, 'getDiscussionPostSupporters']);
+    Route::post('discussion-posts/support/store', [DiscussionPostController::class, 'storeDiscussionPostSupporter']);
+    Route::post('discussion-posts/support/destroy', [DiscussionPostController::class, 'destroyDiscussionPostSupporter']);
+    Route::post('discussion-posts/post/hearts/update', [DiscussionPostController::class, 'updateDiscussionPostHearts']);
+    Route::post('discussion-posts/test', [DiscussionPostController::class, 'testApi']);
 
     // Events
     Route::get('events', [EventController::class, 'getEvents']);

@@ -427,27 +427,28 @@ class AccountController extends Controller
     }
 
     public function test(Request $request) {
-        Log::info($request->body[0] === '{' || $request->body[0] === '[');
+        Log::info("Test api");
+        // Log::info($request->body[0] === '{' || $request->body[0] === '[');
         // Log::info(json_decode($request->body, true, 5));
 
-        $test = gettype(json_decode(json_encode($request->body)));
+        // $test = gettype(json_decode(json_encode($request->body)));
 
-        Log::info($test);
+        // Log::info($test);
 
-        $post = new DiscussionPost();
+        // $post = new DiscussionPost();
 
-        $post->user_id = 1;
-        $post->title = "Tiptap";
-        $post->body = $request->body;
-        $post->is_hobby = false;
-        $post->is_wellbeing = false;
-        $post->is_career = false;
-        $post->is_coaching = false;
-        $post->is_science_and_tech = false;
-        $post->is_social_cause = false;
+        // $post->user_id = 1;
+        // $post->title = "Tiptap";
+        // $post->body = $request->body;
+        // $post->is_hobby = false;
+        // $post->is_wellbeing = false;
+        // $post->is_career = false;
+        // $post->is_coaching = false;
+        // $post->is_science_and_tech = false;
+        // $post->is_social_cause = false;
 
-        $post->save();
+        // $post->save();
 
-        return response(json_encode($post->body), 200);
+        // return response(json_encode($post->body), 200);
     }
 }

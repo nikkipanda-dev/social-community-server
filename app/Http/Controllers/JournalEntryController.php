@@ -140,7 +140,6 @@ class JournalEntryController extends Controller
                 $user = User::where('username', $request->username)->first();
 
                 if ($user) {
-
                     if (!(($request->body[0] === '{') || ($request->body[0] === '['))) {
                         Log::error("Failed to store journal entry. Body is not a JSON string.");
 
