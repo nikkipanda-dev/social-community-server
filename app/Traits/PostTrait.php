@@ -13,6 +13,10 @@ use Illuminate\Support\Str;
 use App\Models\MicroblogEntryComment;
 use App\Models\MicroblogEntryCommentHeart;
 use App\Models\MicroblogEntryHeart;
+use App\Models\BlogEntry;
+use App\Models\BlogEntryComment;
+use App\Models\BlogEntryCommentHeart;
+use App\Models\BlogEntrySupporter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
@@ -487,5 +491,191 @@ trait PostTrait {
         }
 
         return $discussions;
+    }
+
+    // Blog
+    public function getAllBlogEntries($category) {
+        Log::info("Entering PostTrait getAllBlogEntries...");
+        Log::info($category);
+
+        $posts = [];
+
+        if ($category) {
+            $posts = BlogEntry::latest()
+                                    ->with('user:id,first_name,last_name,username')
+                                    ->where($category, true)
+                                    ->get();
+        } else {
+            $posts = BlogEntry::latest()
+                                    ->with('user:id,first_name,last_name,username')
+                                    ->get();
+        }
+
+        return $posts;
+    }
+
+    public function getChunkedBlogEntries($category, $offset, $limit) {
+        Log::info("Entering PostTrait getChunkedBlogEntries...");
+
+        $posts = [];
+
+        if ($category) {
+            $posts = BlogEntry::latest()
+                                    ->with('user:id,first_name,last_name,username')
+                                    ->where($category, true)
+                                    ->offset(intval($offset, 10))
+                                    ->limit(intval($limit, 10))
+                                    ->get();
+        } else {
+            $posts = BlogEntry::latest()
+                                    ->with('user:id,first_name,last_name,username')
+                                    ->offset(intval($offset, 10))
+                                    ->limit(intval($limit, 10))
+                                    ->get();
+        }
+
+        return $posts;
+    }
+
+    public function getBlogEntryRecord($slug) {
+        Log::info("Entering PostTrait getBlogEntryRecord...");
+
+        $post = BlogEntry::with('user:id,first_name,last_name,username')
+                         ->where('slug', $slug)
+                         ->first();
+
+        return $post;
+    }
+
+    public function getAllBlogEntryComments($id) {
+        Log::info("Entering PostTrait getAllBlogEntryComments...");
+
+        $comments = BlogEntryComment::latest()
+                                    ->with('user:id,first_name,last_name,username')
+                                    ->where('blog_entry_id', $id)
+                                    ->get();
+
+        return $comments;
+    }
+
+    public function getChunkedBlogEntryComments($id, $limit) {
+        Log::info("Entering PostTrait getChunkedBlogEntryComments...");
+
+        $comments = BlogEntryComment::latest()
+                                    ->with('user:id,first_name,last_name,username')
+                                    ->where('blog_entry_id', $id)
+                                    ->limit(intval($limit, 10))
+                                    ->get();
+
+        return $comments;
+    }
+
+    public function getBlogEntryCommentRecord($slug) {
+        Log::info("Entering PostTrait getBlogEntryCommentRecord...");
+
+        $comment = BlogEntryComment::with('user:id,first_name,last_name,username')
+                                   ->where('slug', $slug)
+                                   ->first();
+
+        return $comment;
+    }
+
+    public function isBlogEntryCommentHeart($id, $userId) {
+        Log::info("Entering PostTrait isBlogEntryCommentHeart...");
+
+        $isHeart = false;
+
+        $heart = BlogEntryCommentHeart::where('blog_entry_comment_id', $id)
+                                      ->where('user_id', $userId)
+                                      ->first();
+
+        if ($heart) {
+            $isHeart = true;
+        }
+
+        return $isHeart;
+    }
+
+    public function isBlogEntrySupporter($id, $userId) {
+        Log::info("Entering PostTrait isBlogEntrySupporter...");
+
+        $isHeart = false;
+
+        $heart = BlogEntrySupporter::where('blog_entry_id', $id)
+                                   ->where('user_id', $userId)
+                                   ->first();
+
+        if ($heart) {
+            $isHeart = true;
+        }
+
+        return $isHeart;
+    }
+
+    public function getBlogEntryCommentHearts($id, $userId) {
+        Log::info("Entering PostTrait getBlogEntryCommentHearts...");
+
+        $heartDetails = [
+            'count' => 0,
+            'hearts' => null,
+            'is_heart' => false,
+        ];
+
+        $hearts = BlogEntryCommentHeart::with('user:id,first_name,last_name,username')
+                                       ->where('blog_entry_comment_id', $id)
+                                       ->get();
+
+        if (count($hearts) > 0) {
+            foreach ($hearts as $heart) {
+                if ($heart->user && ($heart->user->first_name && $heart->user->last_name && $heart->user->username)) {
+                    $heartDetails['hearts'][] = [
+                        'first_name' => $heart->user->first_name,
+                        'last_name' => $heart->user->last_name,
+                        'username' => $heart->user->username,
+                    ];
+                }
+                if ($heart->user->id === $userId) {
+                    $heartDetails['is_heart'] = true;
+
+                    break;
+                }
+            }
+
+            $heartDetails['count'] = count($hearts);
+        }
+
+        return $heartDetails;
+    }
+
+    public function getAllBlogEntrySupporters($id) {
+        Log::info("Entering PostTrait getAllBlogEntrySupporters...");
+
+        $users = [];
+
+        $supporters = BlogEntrySupporter::with('user:id,first_name,last_name,username')
+                                        ->where('blog_entry_id', $id)
+                                        ->get();
+
+        if ($supporters && (count($supporters) > 0)) {
+            foreach ($supporters as $supporter) {
+                if ($supporter->user && $supporter->user->id) {
+                    unset($supporter->user->id);
+                    $users[] = $supporter->user;
+                }
+            }
+        }
+
+        return $users;
+    }
+
+    public function getAllBlogEntryWordsmiths() {
+        Log::info("Entering PostTrait getAllBlogEntryWordsmiths...");
+
+        $users = User::has('blogEntries')
+                     ->withCount('blogEntries')
+                     ->orderBy('blog_entries_count')
+                     ->get();       
+
+        return $users;
     }
 }

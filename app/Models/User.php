@@ -51,6 +51,10 @@ class User extends Authenticatable
         return $this->hasMany(BlogEntry::class);
     }
 
+    public function blogEntrySupporters() {
+        return $this->hasMany(BlogEntrySupporter::class);
+    }
+
     public function microblogEntries() {
         return $this->hasMany(MicroblogEntry::class);
     }

@@ -59,6 +59,22 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Blog entries
     Route::get('blog-entries', [BlogEntryController::class, 'getBlogEntries']);
+    Route::get('blog-entries/get', [BlogEntryController::class, 'getBlogEntries']);
+    Route::get('blog-entries/get-entry', [BlogEntryController::class, 'getBlogEntry']);
+    Route::get('blog-entries/paginate', [BlogEntryController::class, 'getPaginatedBlogEntries']);
+    Route::post('blog-entries/store', [BlogEntryController::class, 'storeBlogEntry']);
+    Route::post('blog-entries/update', [BlogEntryController::class, 'updateBlogEntry']);
+    Route::post('blog-entries/destroy', [BlogEntryController::class, 'destroyBlogEntry']);
+    Route::get('blog-entries/support/get', [BlogEntryController::class, 'getBlogEntrySupporters']);
+    Route::post('blog-entries/support/store', [BlogEntryController::class, 'storeBlogEntrySupporter']);
+    Route::post('blog-entries/support/destroy', [BlogEntryController::class, 'destroyBlogEntrySupporter']);
+    Route::get('blog-entries/comments/get', [BlogEntryController::class, 'getBlogEntryComments']);
+    Route::get('blog-entries/comments/paginate', [BlogEntryController::class, 'getPaginatedBlogEntryComments']);
+    Route::post('blog-entries/comments/store', [BlogEntryController::class, 'storeBlogEntryComment']);
+    Route::post('blog-entries/comments/update', [BlogEntryController::class, 'updateBlogEntryComment']);
+    Route::post('blog-entries/comments/destroy', [BlogEntryController::class, 'destroyBlogEntryComment']);
+    Route::get('blog-entries/wordsmiths/get', [BlogEntryController::class, 'getBlogEntryWordsmiths']);
+    Route::post('blog-entries/comments/hearts/update', [BlogEntryController::class, 'updateBlogEntryCommentHeart']);
 
     // Microblog entries
     Route::get('microblog-entries', [MicroblogEntryController::class, 'getMicroblogEntries']);

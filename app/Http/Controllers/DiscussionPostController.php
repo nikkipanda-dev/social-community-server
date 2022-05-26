@@ -599,7 +599,6 @@ class DiscussionPostController extends Controller
 
         $this->validate($request, [
             'username' => 'bail|required|exists:users',
-            'category' => 'bail|nullable|string|in:hobby,wellbeing,career,coaching,science_and_tech,social_cause',
             'title' => 'bail|required|string|between:2,50',
             'body' => 'bail|required|string|between:2,10000',
             'category' => 'bail|required|in:hobby,wellbeing,career,coaching,science_and_tech,social_cause',
