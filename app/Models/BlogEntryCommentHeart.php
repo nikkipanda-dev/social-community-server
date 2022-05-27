@@ -6,15 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class JournalEntry extends Model
+class BlogEntryCommentHeart extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public function blogEntryComment() {
+        return $this->belongsTo(BlogEntryComment::class);
+    }
+    
     public function user() {
         return $this->belongsTo(User::class);
-    }
-
-    public function journalEntryImages() {
-        return $this->hasMany(JournalEntryImage::class);
     }
 }
