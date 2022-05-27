@@ -129,11 +129,19 @@ class BlogEntryController extends Controller
                     }
 
                     unset($entry->id);
+                    unset($entry->user_id);
                     unset($entry->deleted_at);
                     unset($entry->updated_at);
 
                     if ($entry->user && $entry->user->id) {
                         unset($entry->user->id);
+                    }
+
+                    if ($entry->blogEntryImages && (count($entry->blogEntryImages) > 0)) {
+                        foreach ($entry->blogEntryImages as $image) {
+                            $image['path'] = Storage::disk($image->disk)->url("blog-entries/".$image->path);
+                            unset($image->disk);
+                        }
                     }
 
                     Log::info("Successfully retrieved blog entry. Leaving BlogEntryController getBlogEntry...");
@@ -229,7 +237,7 @@ class BlogEntryController extends Controller
 
                                 do {
                                     $slug = $this->generateSlug();
-                                    if (!(Storage::disk('do_space')->exists($post->id . "-" . $slug . "." . $image->extension()))) {
+                                    if (!(Storage::disk('do_space')->exists("blog-entries/".$slug . "." . $image->extension()))) {
                                         $isUnique = true;
                                     }
                                 } while (!($isUnique));
@@ -237,14 +245,18 @@ class BlogEntryController extends Controller
                                 Storage::disk('do_space')->putFileAs(
                                     "blog-entries",
                                     $image,
-                                    $post->id."-".$slug.".".$image->extension()
+                                    $slug.".".$image->extension()
                                 );
+
+                                if (Storage::disk('do_space')->exists("blog-entries/" . $slug . "." . $image->extension())) {
+                                    Storage::disk("do_space")->setVisibility("blog-entries/" . $slug . "." . $image->extension(), 'public');
+                                }
 
                                 $newImage = new BlogEntryImage();
 
                                 $newImage->blog_entry_id = $post->id;
                                 $newImage->disk = "do_space";
-                                $newImage->path = $post->id."-blog-entries/".$slug.".".$image->extension();
+                                $newImage->path = $slug.".".$image->extension();
                                 $newImage->extension = $image->extension();
 
                                 $newImage->save();
@@ -294,6 +306,8 @@ class BlogEntryController extends Controller
             'slug' => 'bail|required|string|exists:blog_entries',
             'title' => 'bail|required|string|between:2,50',
             'body' => 'bail|required|string|between:2,10000',
+            'images' => 'bail|nullable|array|min:1',
+            'images.*.*' => 'image',
         ]);
 
         try {
@@ -332,15 +346,100 @@ class BlogEntryController extends Controller
 
                     $post->save();
 
-                    if (!($post->wasChanged())) {
-                        Log::notice("Blog entry ID ".$post->id." was not changed. No action needed.\n");
+                    $isSuccess = false;
+                    $errorText = '';
 
-                        return $this->errorResponse($this->getPredefinedResponse('not changed', "community blog entry"));
+                    if (is_array($request->images)) {
+                        $imagesResponse = DB::transaction(function () use ($request, $isSuccess, $errorText, $post) {
+                            // Soft delete existing images first
+                            if ($post->blogEntryImages && (count($post->blogEntryImages) > 0)) {
+                                foreach ($post->blogEntryImages as $image) {
+                                    $image->delete();
+                                }
+                            }
+
+                            // Loop through each uploaded image
+                            foreach ($request->images as $image) {
+                                Log::info($image);
+                                if (!($image->isValid())) {
+                                    $errorText = "Failed to update blog entry images. Image is invalid.";
+
+                                    throw new Exception($errorText);
+                                }
+
+                                $isUnique = false;
+                                $slug = null;
+
+                                do {
+                                    $slug = $this->generateSlug();
+                                    if (!(Storage::disk('do_space')->exists("blog-entries/" . $slug . "." . $image->extension()))) {
+                                        $isUnique = true;
+                                    }
+                                } while (!($isUnique));
+
+                                Storage::disk('do_space')->putFileAs(
+                                    "blog-entries",
+                                    $image,
+                                    $slug . "." . $image->extension()
+                                );
+
+                                if (Storage::disk('do_space')->exists("blog-entries/" . $slug . "." . $image->extension())) {
+                                    Storage::disk("do_space")->setVisibility("blog-entries/" . $slug . "." . $image->extension(), 'public');
+                                }
+
+                                $newImage = new BlogEntryImage();
+
+                                $newImage->blog_entry_id = $post->id;
+                                $newImage->disk = "do_space";
+                                $newImage->path = $slug . "." . $image->extension();
+                                $newImage->extension = $image->extension();
+
+                                $newImage->save();
+
+                                if (!$newImage) {
+                                    $isSuccess = false;
+                                    $errorText = "Failed to update a blog entry image.";
+
+                                    throw new Exception($errorText);
+                                }
+
+                                $isSuccess = true;
+                            }
+
+                            return [
+                                'isSuccess' => $isSuccess,
+                                'errorText' => $errorText,
+                            ];
+                        }, 3);
+
+                        if (!$imagesResponse['isSuccess']) {
+                            Log::error("Failed to update blog entry images for ID " . $post->id . ".\n");
+
+                            return $this->errorResponse($this->getPredefinedResponse('default', null));
+                        }
                     }
 
                     Log::info("Successfully updated blog entry ID " . $post->id . ". Leaving BlogEntryController updateBlogEntry...\n");
 
-                    return $this->successResponse("details", $post->only(['title', 'body', 'slug', 'created_at']));
+                    $post = $this->getBlogEntryRecord($request->slug);
+
+                    unset($post->id);
+                    unset($post->user_id);
+                    unset($post->updated_at);
+                    unset($post->deleted_at);
+
+                    if ($post->user && $post->user->id) {
+                        unset($post->user->id);
+                    }
+
+                    if ($post->blogEntryImages && (count($post->blogEntryImages) > 0)) {
+                        foreach ($post->blogEntryImages as $image) {
+                            $image['path'] = Storage::disk($image->disk)->url("blog-entries/" . $image->path);
+                            unset($image->disk);
+                        }
+                    }
+
+                    return $this->successResponse("details", $post);
 
                     break;
                 }
@@ -1048,7 +1147,6 @@ class BlogEntryController extends Controller
                 unset($user->deleted_at);
                 unset($user->is_super_admin);
                 unset($user->is_admin);
-                Log::info($user);
             }
 
             Log::info("Successfully retrieved wordsmiths. Leaving BlogEntryController getBlogEntryWordsmiths...\n");

@@ -5,10 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\JournalEntry;
 use App\Models\User;
+use App\Models\JournalEntryImage;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
 use App\Traits\PostTrait;
 use Illuminate\Support\Facades\Log;
+use Exception;
 
 class JournalEntryController extends Controller
 {
@@ -133,6 +137,8 @@ class JournalEntryController extends Controller
             'username' => 'bail|required|exists:users',
             'title' => 'bail|required|string|between:2,50',
             'body' => 'bail|required|between:2,10000',
+            'images' => 'bail|nullable|array|min:1',
+            'images.*.*' => 'image',
         ]);
 
         try {
@@ -175,11 +181,73 @@ class JournalEntryController extends Controller
                                 return $this->errorResponse($this->getPredefinedResponse('default', null));
                             }
 
-                            if ($journalEntry) {
-                                Log::info("Successfully stored new journal entry ID ".$journalEntry->id. ". Leaving JournalEntryController storeJournalEntry....\n");
+                            $isSuccess = false;
+                            $errorText = '';
 
-                                return $this->successResponse("details", $journalEntry->only(['title', 'body', 'slug', 'created_at']));
+                            if (is_array($request->images)) {
+                                $imagesResponse = DB::transaction(function () use ($request, $isSuccess, $errorText, $journalEntry) {
+                                    foreach ($request->images as $image) {
+                                        if (!($image->isValid())) {
+                                            $errorText = "Failed to store journal entry images. Image is invalid.";
+
+                                            throw new Exception($errorText);
+                                        }
+
+                                        $isUnique = false;
+                                        $slug = null;
+
+                                        do {
+                                            $slug = $this->generateSlug();
+                                            if (!(Storage::disk('do_space')->exists("journal-entries/" . $slug . "." . $image->extension()))) {
+                                                $isUnique = true;
+                                            }
+                                        } while (!($isUnique));
+
+                                        Storage::disk('do_space')->putFileAs(
+                                            "journal-entries",
+                                            $image,
+                                            $slug . "." . $image->extension()
+                                        );
+
+                                        if (Storage::disk('do_space')->exists("journal-entries/" . $slug . "." . $image->extension())) {
+                                            Storage::disk("do_space")->setVisibility("journal-entries/" . $slug . "." . $image->extension(), 'public');
+                                        }
+
+                                        $newImage = new JournalEntryImage();
+
+                                        $newImage->journal_entry_id = $journalEntry->id;
+                                        $newImage->disk = "do_space";
+                                        $newImage->path = $slug . "." . $image->extension();
+                                        $newImage->extension = $image->extension();
+
+                                        $newImage->save();
+
+                                        if (!$newImage) {
+                                            $isSuccess = false;
+                                            $errorText = "Failed to store a journal entry image.";
+
+                                            throw new Exception($errorText);
+                                        }
+
+                                        $isSuccess = true;
+                                    }
+
+                                    return [
+                                        'isSuccess' => $isSuccess,
+                                        'errorText' => $errorText,
+                                    ];
+                                }, 3);
+
+                                if (!$imagesResponse['isSuccess']) {
+                                    Log::error("Failed to store new journal entry images for ID " . $journalEntry->id . ".\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
                             }
+
+                            Log::info("Successfully stored new journal entry ID ".$journalEntry->id. ". Leaving JournalEntryController storeJournalEntry....\n");
+
+                            return $this->successResponse("details", $journalEntry->only(['title', 'body', 'slug', 'created_at']));
 
                             break;
                         }
@@ -209,6 +277,8 @@ class JournalEntryController extends Controller
             'slug' => 'bail|required|string|exists:journal_entries',
             'title' => 'bail|required|string|between:2,50',
             'body' => 'bail|required|between:2,10000',
+            'images' => 'bail|nullable|array|min:1',
+            'images.*.*' => 'image',
         ]);
 
         try {
@@ -226,22 +296,113 @@ class JournalEntryController extends Controller
                         if ($token->tokenable_id === $user->id) {
                             $journalEntry = $this->getJournalEntryRecord($request->slug);
 
+                            if (!($journalEntry)) {
+                                Log::error("Failed to update journal entry. Entry does not exist or might be deleted.\n");
+
+                                return $this->errorResponse("Journal entry does not exist.");
+                            }
+
+                            if ($journalEntry->user_id !== $user->id) {
+                                Log::error("Failed to update journal entry. Authenticated user is not the author.\n");
+
+                                return $this->errorResponse($this->getPredefinedResponse('default', null));
+                            }
+
                             $journalEntry->title = $request->title;
                             $journalEntry->body = $request->body;
 
                             $journalEntry->save();
 
-                            if (!($journalEntry->wasChanged(['title', 'body']))) {
-                                Log::notice("Title and/or body was not changed No action needed.\n");
+                            $isSuccess = false;
+                            $errorText = '';
 
-                                return $this->errorResponse("Journal title and/or body not changed.");
+                            if (is_array($request->images)) {
+                                $imagesResponse = DB::transaction(function () use ($request, $isSuccess, $errorText, $journalEntry) {
+                                    // Soft delete existing images first
+                                    if ($journalEntry->journalEntryImages && (count($journalEntry->journalEntryImages) > 0)) {
+                                        foreach ($journalEntry->journalEntryImages as $image) {
+                                            $image->delete();
+                                        }
+                                    }
+
+                                    // Loop through each uploaded image
+                                    foreach ($request->images as $image) {
+                                        Log::info($image);
+                                        if (!($image->isValid())) {
+                                            $errorText = "Failed to update journal entry images. Image is invalid.";
+
+                                            throw new Exception($errorText);
+                                        }
+
+                                        $isUnique = false;
+                                        $slug = null;
+
+                                        do {
+                                            $slug = $this->generateSlug();
+                                            if (!(Storage::disk('do_space')->exists("journal-entries/" . $slug . "." . $image->extension()))) {
+                                                $isUnique = true;
+                                            }
+                                        } while (!($isUnique));
+
+                                        Storage::disk('do_space')->putFileAs(
+                                            "journal-entries",
+                                            $image,
+                                            $slug . "." . $image->extension()
+                                        );
+
+                                        if (Storage::disk('do_space')->exists("journal-entries/" . $slug . "." . $image->extension())) {
+                                            Storage::disk("do_space")->setVisibility("journal-entries/" . $slug . "." . $image->extension(), 'public');
+                                        }
+
+                                        $newImage = new JournalEntryImage();
+
+                                        $newImage->journal_entry_id = $journalEntry->id;
+                                        $newImage->disk = "do_space";
+                                        $newImage->path = $slug . "." . $image->extension();
+                                        $newImage->extension = $image->extension();
+
+                                        $newImage->save();
+
+                                        if (!$newImage) {
+                                            $isSuccess = false;
+                                            $errorText = "Failed to update a journal entry image.";
+
+                                            throw new Exception($errorText);
+                                        }
+
+                                        $isSuccess = true;
+                                    }
+
+                                    return [
+                                        'isSuccess' => $isSuccess,
+                                        'errorText' => $errorText,
+                                    ];
+                                }, 3);
+
+                                if (!$imagesResponse['isSuccess']) {
+                                    Log::error("Failed to update journal entry images for ID " . $journalEntry->id . ".\n");
+
+                                    return $this->errorResponse($this->getPredefinedResponse('default', null));
+                                }
                             }
 
-                            if ($journalEntry) {
-                                Log::info("Successfully updated new journal entry ID " . $journalEntry->id . ". Leaving JournalEntryController updateJournalEntry....\n");
+                            Log::info("Successfully updated new journal entry ID " . $journalEntry->id . ". Leaving JournalEntryController updateJournalEntry....\n");
 
-                                return $this->successResponse("details", $journalEntry->only(['title', 'body', 'slug', 'created_at']));
+                            $journalEntry = $this->getJournalEntryRecord($request->slug);
+
+                            unset($journalEntry->id);
+                            unset($journalEntry->user_id);
+                            unset($journalEntry->updated_at);
+                            unset($journalEntry->deleted_at);
+
+                            if ($journalEntry->journalEntryImages && (count($journalEntry->journalEntryImages) > 0)) {
+                                foreach ($journalEntry->journalEntryImages as $image) {
+                                    $image['path'] = Storage::disk($image->disk)->url("journal-entries/" . $image->path);
+                                    unset($image->disk);
+                                }
                             }
+
+                            return $this->successResponse("details", $journalEntry);
 
                             break;
                         }
@@ -357,11 +518,21 @@ class JournalEntryController extends Controller
                                 return $this->errorResponse($this->getPredefinedResponse('default', null));
                             }
 
-                            if ($journalEntry) {
-                                Log::info("Successfully retrieved journal entry ID ".$journalEntry->id. ". Leaving JournalEntryController getJournalEntry...\n");
+                            Log::info("Successfully retrieved journal entry ID ".$journalEntry->id. ". Leaving JournalEntryController getJournalEntry...\n");
 
-                                return $this->successResponse("details", $journalEntry->only(['title', 'body', 'slug', 'created_at']));
+                            unset($journalEntry->id);
+                            unset($journalEntry->user_id);
+                            unset($journalEntry->updated_at);
+                            unset($journalEntry->deleted_at);
+
+                            if ($journalEntry->journalEntryImages && (count($journalEntry->journalEntryImages) > 0)) {
+                                foreach ($journalEntry->journalEntryImages as $image) {
+                                    $image['path'] = Storage::disk($image->disk)->url("journal-entries/" . $image->path);
+                                    unset($image->disk);
+                                }
                             }
+
+                            return $this->successResponse("details", $journalEntry);
 
                             break;
                         }

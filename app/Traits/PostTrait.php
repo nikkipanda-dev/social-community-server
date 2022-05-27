@@ -209,7 +209,20 @@ trait PostTrait {
     public function getJournalEntryRecord($slug) {
         Log::info("Entering PostTrait getJournalEntryRecord...");
 
-        $journalEntry = JournalEntry::where('slug', $slug)->first();
+        $journalEntry = JournalEntry::with('journalEntryImages')
+                                    ->where('slug', $slug)
+                                    ->first();
+
+        if ($journalEntry) {
+            foreach ($journalEntry->journalEntryImages as $image) {
+                unset($image->id);
+                unset($image->journal_entry_id);
+                unset($image->extension);
+                unset($image->created_at);
+                unset($image->updated_at);
+                unset($image->deleted_at);
+            }
+        }
 
         return $journalEntry;
     }
@@ -502,13 +515,13 @@ trait PostTrait {
 
         if ($category) {
             $posts = BlogEntry::latest()
-                                    ->with('user:id,first_name,last_name,username')
-                                    ->where($category, true)
-                                    ->get();
+                              ->with('user:id,first_name,last_name,username')
+                              ->where($category, true)
+                              ->get();
         } else {
             $posts = BlogEntry::latest()
-                                    ->with('user:id,first_name,last_name,username')
-                                    ->get();
+                              ->with('user:id,first_name,last_name,username')
+                              ->get();
         }
 
         return $posts;
@@ -540,9 +553,20 @@ trait PostTrait {
     public function getBlogEntryRecord($slug) {
         Log::info("Entering PostTrait getBlogEntryRecord...");
 
-        $post = BlogEntry::with('user:id,first_name,last_name,username')
+        $post = BlogEntry::with(['user:id,first_name,last_name,username', 'blogEntryImages'])
                          ->where('slug', $slug)
                          ->first();
+
+        if ($post) {
+            foreach($post->blogEntryImages as $image) {
+                unset($image->id);
+                unset($image->blog_entry_id);
+                unset($image->extension);
+                unset($image->created_at);
+                unset($image->updated_at);
+                unset($image->deleted_at);
+            }
+        }
 
         return $post;
     }
