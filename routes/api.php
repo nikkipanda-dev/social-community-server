@@ -58,7 +58,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('community/update-twitter-account', [CommunityController::class, 'updateTwitterAccount']);
 
     // Blog entries
-    Route::get('blog-entries', [BlogEntryController::class, 'getBlogEntries']);
+    // Route::get('blog-entries', [BlogEntryController::class, 'getBlogEntries']);
     Route::get('blog-entries/get', [BlogEntryController::class, 'getBlogEntries']);
     Route::get('blog-entries/get-entry', [BlogEntryController::class, 'getBlogEntry']);
     Route::get('blog-entries/paginate', [BlogEntryController::class, 'getPaginatedBlogEntries']);
@@ -123,6 +123,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Events
     Route::get('events', [EventController::class, 'getEvents']);
+    Route::get('events/paginate', [EventController::class, 'getPaginatedEvents']);
+    Route::get('events/get', [EventController::class, 'getEvent']);
+    Route::post('events/store', [EventController::class, 'storeEvent']);
+    Route::post('events/update', [EventController::class, 'updateEvent']);
+    Route::post('events/destroy', [EventController::class, 'destroyEvent']);
+    Route::get('events/replies/get', [EventController::class, 'getEventReplies']);
+    Route::get('events/replies/paginate', [EventController::class, 'getPaginatedEventReplies']);
+    Route::post('events/replies/store', [EventController::class, 'storeEventReply']);
+    Route::post('events/replies/update', [EventController::class, 'updateEventReply']);
+    Route::post('events/replies/destroy', [EventController::class, 'destroyEventReply']);
+    Route::post('events/replies/hearts/update', [EventController::class, 'updateEventHeart']);
+    Route::get('events/participants/get', [EventController::class, 'getEventParticipants']);
+    Route::post('events/participants/store', [EventController::class, 'storeEventParticipant']);
+    Route::post('events/participants/destroy', [EventController::class, 'destroyEventParticipant']);
 
     // Friends
     Route::get('friends/user/get-friend', [FriendController::class, 'getFriend']);

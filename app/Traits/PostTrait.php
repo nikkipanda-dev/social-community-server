@@ -17,6 +17,10 @@ use App\Models\BlogEntry;
 use App\Models\BlogEntryComment;
 use App\Models\BlogEntryCommentHeart;
 use App\Models\BlogEntrySupporter;
+use App\Models\Event;
+use App\Models\EventReply;
+use App\Models\EventReplyHeart;
+use App\Models\EventParticipant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
@@ -701,5 +705,196 @@ trait PostTrait {
                      ->get();       
 
         return $users;
+    }
+
+    // Events
+    public function getAllEvents($category) {
+        Log::info("Entering PostTrait getAllEvents...");
+        Log::info($category);
+
+        $events = [];
+
+        if ($category) {
+            $events = Event::latest()
+                           ->with('user:id,first_name,last_name,username')
+                           ->where($category, true)
+                           ->get();
+        } else {
+            $events = Event::latest()
+                           ->with('user:id,first_name,last_name,username')
+                           ->get();
+        }
+
+        if ($events && (count($events) > 0)) {
+            foreach ($events as $event) {
+                unset($event->is_hobby);
+                unset($event->is_wellbeing);
+                unset($event->is_career);
+                unset($event->is_coaching);
+                unset($event->is_science_and_tech);
+                unset($event->is_social_cause);
+            }
+        }
+
+        return $events;
+    }
+
+    public function getChunkedEvents($category, $offset, $limit) {
+        Log::info("Entering PostTrait getChunkedEvents...");
+
+        $events = [];
+
+        if ($category) {
+            $events = Event::latest()
+                          ->with('user:id,first_name,last_name,username')
+                          ->where($category, true)
+                          ->offset(intval($offset, 10))
+                          ->limit(intval($limit, 10))
+                          ->get();
+        } else {
+            $events = Event::latest()
+                          ->with('user:id,first_name,last_name,username')
+                          ->offset(intval($offset, 10))
+                          ->limit(intval($limit, 10))
+                          ->get();
+        }
+
+        return $events;
+    }
+
+    public function getEventRecord($slug) {
+        Log::info("Entering PostTrait getEventRecord...");
+
+        $event = Event::with('user:id,first_name,last_name,username')
+                      ->where('slug', $slug)
+                      ->first();
+
+        $category = null;
+
+        $categoryArr = ['hobby', 'wellbeing', 'career', 'coaching', 'science_and_tech', 'social_cause'];
+
+        foreach ($categoryArr as $type) {
+            if ($event->{'is_' . $type} == true) {
+                $category = ($type === 'science_and_tech') ? "science & tech" : $type;
+                break;
+            }
+        }
+
+        if ($event) {
+            unset($event->is_hobby);
+            unset($event->is_wellbeing);
+            unset($event->is_coaching);
+            unset($event->is_career);
+            unset($event->is_science_and_tech);
+            unset($event->is_social_cause);
+            $event['category'] = $category;
+        }
+
+        return $event;
+    }
+
+    public function getAllEventReplies($id) {
+        Log::info("Entering PostTrait getAllEventReplies...");
+
+        $replies = EventReply::latest()
+                             ->with('user:id,first_name,last_name,username')
+                             ->where('event_id', $id)
+                             ->get();
+
+        return $replies;
+    }
+
+    public function getChunkedEventReplies($id, $limit) {
+        Log::info("Entering PostTrait getChunkedEventReplies...");
+
+        $replies = EventReply::latest()
+                             ->with('user:id,first_name,last_name,username')
+                             ->where('event_id', $id)
+                             ->limit(intval($limit, 10))
+                             ->get();
+
+        return $replies;
+    }
+
+    public function getEventReplyRecord($slug) {
+        Log::info("Entering PostTrait getEventReplyRecord...");
+
+        $reply = EventReply::with('user:id,first_name,last_name,username')
+                             ->where('slug', $slug)
+                             ->first();
+
+        return $reply;
+    }
+
+    public function getEventReplyHearts($id, $userId) {
+        Log::info("Entering PostTrait getEventReplyHearts...");
+
+        $heartDetails = [
+            'count' => 0,
+            'hearts' => null,
+            'is_heart' => false,
+        ];
+
+        $hearts = EventReplyHeart::with('user:id,first_name,last_name,username')
+                                 ->where('event_reply_id', $id)
+                                 ->get();
+
+        if (count($hearts) > 0) {
+            foreach ($hearts as $heart) {
+                if ($heart->user && ($heart->user->first_name && $heart->user->last_name && $heart->user->username)) {
+                    $heartDetails['hearts'][] = [
+                        'first_name' => $heart->user->first_name,
+                        'last_name' => $heart->user->last_name,
+                        'username' => $heart->user->username,
+                    ];
+                }
+                if ($heart->user->id === $userId) {
+                    $heartDetails['is_heart'] = true;
+
+                    break;
+                }
+            }
+
+            $heartDetails['count'] = count($hearts);
+        }
+
+        return $heartDetails;
+    }
+
+    public function getAllEventParticipants($id) {
+        Log::info("Entering PostTrait getAllEventParticipants...");
+
+        $users = [];
+
+        $participants = EventParticipant::with('user:id,first_name,last_name,username')
+                                      ->where('event_id', $id)
+                                      ->get();
+
+        if ($participants && (count($participants) > 0)) {
+            foreach ($participants as $participant) {
+                if ($participant->user && $participant->user->id) {
+                    unset($participant->user->id);
+                    $users[] = $participant->user;
+                }
+            }
+        }
+
+        return $users;
+    }
+
+    public function isEventParticipant($id, $userId) {
+        Log::info("Entering PostTrait isEventParticipant...");
+
+        $isParticipant = false;
+
+        $participant = EventParticipant::where('event_id', $id)
+                                       ->where('user_id', $userId)
+                                       ->first();
+
+        if ($participant) {
+            $isParticipant = true;
+        }
+
+        return $isParticipant;
     }
 }

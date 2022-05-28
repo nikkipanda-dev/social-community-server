@@ -551,7 +551,7 @@ class BlogEntryController extends Controller
 
                     $isSupporter = $this->isBlogEntrySupporter($post->id, $user->id);
 
-                    Log::info("Successfully retrieved blog entry ID " . $post->id. ". Leaving BlogEntryController getBlogEntrySupporters...");
+                    Log::info("Successfully retrieved blog entry ID " . $post->id. "'s supporters. Leaving BlogEntryController getBlogEntrySupporters...");
 
                     return $this->successResponse("details", [
                         'is_supporter' => $isSupporter,
@@ -681,7 +681,7 @@ class BlogEntryController extends Controller
                         return $this->errorResponse($this->getPredefinedResponse('default', null));
                     }
 
-                    Log::info("Successfully soft deleted new blog entry supporter ID " . $originalId . ". Leaving BlogEntryController destroyBlogEntrySupporter...\n");
+                    Log::info("Successfully soft deleted blog entry supporter ID " . $originalId . ". Leaving BlogEntryController destroyBlogEntrySupporter...\n");
 
                     return $this->successResponse("details", null);
 

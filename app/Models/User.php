@@ -71,6 +71,18 @@ class User extends Authenticatable
         return $this->hasMany(Event::class);
     }
 
+    public function eventReplies() {
+        return $this->hasMany(EventReply::class);
+    }
+
+    public function eventParticipants() {
+        return $this->hasMany(EventParticipant::class);
+    }
+
+    public function eventReplyHearts() {
+        return $this->hasMany(EventReplyHeart::class);
+    }
+
     public function reports() {
         return $this->hasMany(Report::class);
     }
