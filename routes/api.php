@@ -9,6 +9,7 @@ use App\Http\Controllers\DiscussionPostController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\FriendController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\MicroblogEntryController;
 use App\Http\Controllers\ReportController;
 
@@ -23,7 +24,6 @@ use App\Http\Controllers\ReportController;
 |
 */
 
-Route::post('test', [AccountController::class, 'test']);
 
 Route::post('login', [AuthController::class, 'authenticate']);
 
@@ -33,6 +33,7 @@ Route::get('validate-invitation/{token}', [AccountController::class, 'validateTo
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
+    // Route::post('test', [MessageController::class, 'storeMessage']);
 
     // Account
     Route::get('search-user', [AccountController::class, 'searchUser']);
