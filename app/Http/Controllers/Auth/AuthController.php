@@ -36,9 +36,9 @@ class AuthController extends Controller
                     if ($token) {
                         Log::info("Successfully authenticated user ID " . $user->id . ". Leaving AuthController authenticate...");
 
-                        $secret = FirebaseCredential::where('user_id', $user->id)->first();
+                        $credential = FirebaseCredential::where('user_id', $user->id)->first();
 
-                        if (!($secret)) {
+                        if (!($credential)) {
                             Log::error("Failed to retrieve firebase secret.\n");
 
                             return $this->errorResponse($this->getPredefinedResponse('default', null));
@@ -55,7 +55,7 @@ class AuthController extends Controller
                                 'storage_bucket' => env("FIREBASE_STORAGE_BUCKET"),
                                 'messaging_sender_id' => env("FIREBASE_MESSAGING_SENDER_ID"),
                                 'app_id' => env("FIREBASE_APP_ID"),
-                                'secret' => $secret,
+                                'secret' => $credential->secret,
                             ]
                         ]);
                     } else {
