@@ -114,4 +114,12 @@ class User extends Authenticatable
     public function discussionPostSupporters() {
         return $this->hasMany(DiscussionPostSupporter::class);
     }
+
+    public function messages() {
+        return $this->hasMany(Message::class);
+    }
+
+    public function firebaseCredential() {
+        return $this->hasOne(FirebaseCredential::class);
+    }
 }

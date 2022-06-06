@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\FirebaseCredential;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -35,9 +36,20 @@ class AuthController extends Controller
                     if ($token) {
                         Log::info("Successfully authenticated user ID " . $user->id . ". Leaving AuthController authenticate...");
 
+                        $credential = FirebaseCredential::where('user_id', $user->id)->first();
+
+                        if (!($credential)) {
+                            Log::error("Failed to retrieve firebase secret.\n");
+
+                            return $this->errorResponse($this->getPredefinedResponse('default', null));
+                        }
+
                         return $this->successResponse("details", [
                             'user' => $user,
                             'token' => $token,
+                            'firebase' => [
+                                'secret' => $credential->secret,
+                            ]
                         ]);
                     } else {
                         Log::critical("Failed to authenticate. No token issued.\n");

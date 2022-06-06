@@ -14,4 +14,10 @@ trait AuthTrait {
 
         return $hasAuthHeader;
     }
+
+    public function generateSecretKey() {
+        $secret = bin2hex(random_bytes(10));
+
+        return $secret;
+    }
 }

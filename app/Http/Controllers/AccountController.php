@@ -8,6 +8,7 @@ use App\Mail\InvitationMail;
 use Illuminate\Support\Facades\Mail;
 use App\Models\InvitationToken;
 use App\Models\User;
+use App\Models\FirebaseCredential;
 use App\Models\DiscussionPost;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -66,6 +67,14 @@ class AccountController extends Controller
                 foreach ($request->emails_list as $email) {
                     // Check if user already has a record
 
+                    $invitationTokens = InvitationToken::where('email', $email)->get();
+
+                    if (count($invitationTokens) > 0) {
+                        foreach ($invitationTokens as $invitationToken) {
+                            $invitationToken->delete();
+                        }
+                    }
+
                     $user = User::withTrashed()->where('email', $email)->first();
 
                     if (!($user)) {
@@ -120,7 +129,8 @@ class AccountController extends Controller
     }
 
     public function store(Request $request, $token) {
-        Log::info("Entering AccountController invite...");
+        Log::info("Token ".$token);
+        Log::info("Entering AccountController store...");
 
         $this->validate($request, [
             'email' => 'bail|required|email',
@@ -154,7 +164,7 @@ class AccountController extends Controller
 
                         if ($generatedToken) {
                             // delete invitation token
-                            $invitationToken = InvitationToken::where('token', $token)->first();
+                            $invitationToken = InvitationToken::where('token', base64_decode($token))->first();
 
                             if ($invitationToken) {
                                 $originalToken = $invitationToken->getOriginal('token');
@@ -196,9 +206,31 @@ class AccountController extends Controller
                 if ($userResponse['isSuccess']) {
                     Log::info("Successfully registered user ID ".$userResponse['user']['id'].". Leaving AccountController store...");
 
-                    return $this->successResponse('user', [
+                    $isUnique = false;
+                    $secret = null;
+
+                    $credential = new FirebaseCredential();
+
+                    $credential->user_id = $user->id;
+
+                    do {
+                        $secret = $this->generateSecretKey();
+
+                        if (!(FirebaseCredential::where('secret', $secret)->first())) {
+                            $isUnique = true;
+                        }
+                    } while (!($isUnique));
+
+                    $credential->secret = $secret;
+
+                    $credential->save();
+
+                    return $this->successResponse('details', [
                         'token' => $userResponse['token'],
-                        'details' => $userResponse['user'],
+                        'user' => $userResponse['user'],
+                        'firebase' => [
+                            'secret' => $credential->secret,
+                        ]
                     ]);
                 } else {
                     Log::error($userResponse['errorText']);
