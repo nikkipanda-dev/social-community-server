@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\InvitationToken;
 use App\Models\User;
 use App\Models\FirebaseCredential;
+use App\Models\UserCallout;
 use App\Models\UserDisplayPhoto;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +18,12 @@ use Illuminate\Support\Facades\Storage;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
 use App\Traits\FileTrait;
+use App\Traits\PostTrait;
 use Exception;
 
 class AccountController extends Controller
 {
-    use ResponseTrait, AuthTrait, FileTrait;
+    use ResponseTrait, AuthTrait, FileTrait, PostTrait;
 
     public function searchUser(Request $request) {
         Log::info("Entering AccountController searchUser...");
@@ -655,6 +657,165 @@ class AccountController extends Controller
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
     }
+
+    public function getUserCallout(Request $request) {
+        Log::info("Entering AccountController getUserCallout...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to retrieve user's callout. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to retrieve user's callout. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $callout = $this->getCallout($user->id);
+
+                    if (!($callout)) {
+                        Log::notice("Failed to retrieve callout of user ID " . $user->id . ".\n");
+
+                        return $this->errorResponse("No callout yet.");
+                    }
+
+                    Log::info("Successfully retrieved callout of user ID " . $user->id . ". Leaving AccountController getUserCallout...\n");
+
+                    return $this->successResponse("details", $callout->body);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve user's callout. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateUserCallout(Request $request) {
+        Log::info("Entering AccountController updateUserCallout...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'callout' => 'bail|required|min:2|max:200',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update user's callout. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to update user's callout. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $callout = $this->getCallout($user->id);
+
+                    if ($callout) {
+                        $originalId = $callout->getOriginal('id');
+
+                        $callout->delete();
+
+                        if (UserCallout::find($originalId)) {
+                            Log::error("Failed to update callout of user ID " . $user->id . ".\n");
+
+                            return $this->errorResponse($this->getPredefinedResponse('default', null));
+                        }
+
+                        Log::notice("Soft deleted callout ID ".$originalId.".\n");
+                    }
+
+                    $callout = new UserCallout();
+
+                    $callout->user_id = $user->id;
+                    $callout->body = $request->callout;
+
+                    $callout->save();
+
+                    if (!($callout->id)) {
+                        Log::error("Failed to update callout of user ID " . $user->id . ".\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    Log::info("Successfully updated callout of user ID " . $user->id . ". Leaving AccountController updateUserCallout...\n");
+
+                    return $this->successResponse("details", $callout->body);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update user's callout. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    // public function destroyUserCallout(Request $request) {
+    //     Log::info("Entering AccountController destroyUserCallout...");
+
+    //     $this->validate($request, [
+    //         'username' => 'bail|required|exists:users',
+    //         'callout' => 'bail|required|between:2,200',
+    //     ]);
+
+    //     try {
+    //         if (!($this->hasAuthHeader($request->header('authorization')))) {
+    //             Log::error("Failed to update user's callout. Missing authorization header or does not match regex.\n");
+
+    //             return $this->errorResponse($this->getPredefinedResponse('default', null));
+    //         }
+
+    //         $user = User::where('username', $request->username)->first();
+
+    //         if (!($user)) {
+    //             Log::error("Failed to update user's callout. User does not exist or might be deleted.\n");
+
+    //             return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+    //         }
+
+    //         foreach ($user->tokens as $token) {
+    //             if ($token->tokenable_id === $user->id) {
+    //                 $callout = $this->getCallout($user->id);
+
+    //                 if ($callout) {
+    //                     $originalId = 
+    //                 }
+
+    //                 Log::info("Successfully updated callout of user ID " . $user->id . ". Leaving AccountController destroyUserCallout...\n");
+
+    //                 return $this->successResponse("details", $user);
+
+    //                 break;
+    //             }
+    //         }
+    //     } catch (\Exception $e) {
+    //         Log::error("Failed to update user's callout. " . $e->getMessage() . ".\n");
+
+    //         return $this->errorResponse($this->getPredefinedResponse('default', null));
+    //     }
+    // }
 
     public function destroyUser(Request $request) {
         Log::info("Entering AccountController destroyUser...");

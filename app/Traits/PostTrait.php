@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\JournalEntry;
 use App\Models\MicroblogEntry;
 use App\Models\User;
+use App\Models\UserCallout;
 use App\Models\DiscussionPost;
 use App\Models\DiscussionPostReply;
 use App\Models\DiscussionPostReplyHeart;
@@ -25,6 +26,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
 trait PostTrait {
+    // Account
+    public function getCallout($userId) {
+        $callout = UserCallout::latest()->where('user_id', $userId)->first();
+
+        return $callout;
+    }
+
     public function generateSlug() {
         $rand = bin2hex(random_bytes(30));
 

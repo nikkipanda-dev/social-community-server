@@ -44,6 +44,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('user/email/update', [AccountController::class, 'updateUserEmail']);
     Route::post('user/display-photo/update', [AccountController::class, 'updateUserDisplayPhoto']);
     Route::post('user/password/update', [AccountController::class, 'updateUserPassword']);
+    Route::post('user/callout/update', [AccountController::class, 'updateUserCallout']);
     Route::post('destroy-administrator', [AccountController::class, 'destroyAdministrator']);
     Route::post('destroy-user', [AccountController::class, 'destroyUser']);
 
@@ -151,6 +152,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('friends/user/store', [FriendController::class, 'storeFriend']);
     Route::post('friends/user/destroy', [FriendController::class, 'destroyFriend']);
     Route::post('friends/user/accept', [FriendController::class, 'storeAcceptFriend']);
+
+    // Profile
+    Route::get('user/callout/get', [AccountController::class, 'getUserCallout']);
 
     // Report
     Route::get('reports', [ReportController::class, 'getReports']);
