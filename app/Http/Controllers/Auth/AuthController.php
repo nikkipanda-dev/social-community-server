@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FirebaseCredential;
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use App\Traits\ResponseTrait;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,7 @@ class AuthController extends Controller
 
         try {
             Log::info($request->all());
-            $user = User::where('email', $request->email)->first();
+            $user = User::with('userDisplayPhoto')->where('email', $request->email)->first();
 
             if ($user) {
                 if (Auth::attempt(['email' => $request->email, 'password' => $request->password], $request->remember)) {
@@ -47,6 +48,7 @@ class AuthController extends Controller
                         return $this->successResponse("details", [
                             'user' => $user,
                             'token' => $token,
+                            'display_photo' => $user->userDisplayPhoto ? Storage::disk($user->userDisplayPhoto->disk)->url("user/" . $user->userDisplayPhoto->path) : '',
                             'firebase' => [
                                 'secret' => $credential->secret,
                             ]

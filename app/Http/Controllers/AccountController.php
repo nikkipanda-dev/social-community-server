@@ -9,16 +9,21 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\InvitationToken;
 use App\Models\User;
 use App\Models\FirebaseCredential;
-use App\Models\DiscussionPost;
+use App\Models\UserCallout;
+use App\Models\UserDisplayPhoto;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Traits\ResponseTrait;
 use App\Traits\AuthTrait;
+use App\Traits\FileTrait;
+use App\Traits\PostTrait;
 use Exception;
 
 class AccountController extends Controller
 {
-    use ResponseTrait, AuthTrait;
+    use ResponseTrait, AuthTrait, FileTrait, PostTrait;
 
     public function searchUser(Request $request) {
         Log::info("Entering AccountController searchUser...");
@@ -129,7 +134,6 @@ class AccountController extends Controller
     }
 
     public function store(Request $request, $token) {
-        Log::info("Token ".$token);
         Log::info("Entering AccountController store...");
 
         $this->validate($request, [
@@ -401,6 +405,418 @@ class AccountController extends Controller
         }
     }
 
+    public function updateUserFullName(Request $request) {
+        Log::info("Entering AccountController updateUserFullName...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'first_name' => 'bail|required|min:2|max:100',
+            'last_name' => 'bail|required|min:2|max:100',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update user's first and last name. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to update user's first and last name. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $user->first_name = $request->first_name;
+                    $user->last_name = $request->last_name;
+
+                    $user->save();
+
+                    Log::info("Successfully updated first and last name of user ID " . $user->id . ". Leaving AccountController updateUserFullName...\n");
+
+                    return $this->successResponse("details", $user->only(['first_name', 'last_name']));
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update user's first and last name. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateUserEmail(Request $request) {
+        Log::info("Entering AccountController updateUserEmail...");
+
+        $user = User::where('username', $request->username)->first();
+
+        if (!($user)) {
+            Log::error("Failed to update user's email address. User does not exist or might be deleted.\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+        }
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'email' => [
+                'bail',
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ]
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update user email. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $user->email = $request->email;
+
+                    $user->save();
+
+                    if (!($user->wasChanged('email'))) {
+                        Log::notice("Email address of user ID " . $user->id . " was not changed. No action needed.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('not changed', 'email address'));
+                    }
+
+                    Log::info("Successfully updated email address of user ID " . $user->id . ". Leaving AccountController updateUserEmail...\n");
+
+                    return $this->successResponse("details", $user->email);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update user email. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateUserDisplayPhoto(Request $request) {
+        Log::info("Entering AccountController updateUserDisplayPhoto...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'image' => 'bail|required|image',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update user's display photo. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to update user's display photo. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    if (!($request->hasFile('image'))) {
+                        Log::error("Failed to update user's display photo. No image found.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    if (!($request->image->isValid())) {
+                        Log::error("Failed to update user's display photo. Image is invalid.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    $displayPhoto = $this->getDisplayPhoto($user->id);
+
+                    $isUnique = false;
+                    $slug = null;
+
+                    do {
+                        $slug = $this->generateFilename();
+                        if (!(Storage::disk('do_space')->exists("user/" . $slug . "." . $request->image->extension()))) {
+                            $isUnique = true;
+                        }
+                    } while (!($isUnique));
+
+                    Storage::disk('do_space')->putFileAs(
+                        "user",
+                        $request->image,
+                        $slug . "." . $request->image->extension()
+                    );
+
+                    if (Storage::disk('do_space')->exists("user/" . $slug . "." . $request->image->extension())) {
+                        Storage::disk("do_space")->setVisibility("user/" . $slug . "." . $request->image->extension(), 'public');
+                    }
+
+                    if ($displayPhoto) {
+                        $originalId = $displayPhoto->getOriginal('id');
+
+                        $displayPhoto->delete();
+
+                        if (UserDisplayPhoto::find($originalId)) {
+                            Log::error("Failed to soft delete display photo ID " . $originalId . ".");
+
+                            return $this->errorResponse($this->getPredefinedResponse('default', null));
+                        }
+
+                        if (!(UserDisplayPhoto::find($originalId))) {
+                            Log::notice("Soft deleted display photo ID ".$originalId.".");
+                        }
+                    }
+
+                    $displayPhoto = new UserDisplayPhoto();
+
+                    $displayPhoto->user_id = $user->id;
+                    $displayPhoto->disk = "do_space";
+                    $displayPhoto->path = $slug . "." . $request->image->extension();
+                    $displayPhoto->extension = $request->image->extension();
+
+                    $displayPhoto->save();
+
+                    if (!($displayPhoto->id)) {
+                        Log::error("Failed to update display photo of user ID " . $user->id . ".\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    Log::info("Successfully updated display photo of user ID " . $user->id . ". Leaving AccountController updateUserDisplayPhoto...\n");
+
+                    return $this->successResponse("details", Storage::disk($displayPhoto->disk)->url("user/" . $displayPhoto->path));
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update user's display photo. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateUserPassword(Request $request) {
+        Log::info("Entering AccountController updateUserPassword...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'password' => 'bail|required|between:8,20|confirmed',
+            'password_confirmation' => 'required',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update user's password. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to update user's password. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $user->password = Hash::make($request->password);
+
+                    $user->save();
+
+                    if (!($user->wasChanged('password'))) {
+                        Log::notice("Password of user ID " . $user->id . " was not changed. No action needed.\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('not changed', 'password'));
+                    }
+
+                    Log::info("Successfully updated password of user ID " . $user->id . ". Leaving AccountController updateUserPassword...\n");
+
+                    return $this->successResponse("details", $user);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update user's password. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function getUserCallout(Request $request) {
+        Log::info("Entering AccountController getUserCallout...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to retrieve user's callout. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to retrieve user's callout. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $callout = $this->getCallout($user->id);
+
+                    if (!($callout)) {
+                        Log::notice("Failed to retrieve callout of user ID " . $user->id . ".\n");
+
+                        return $this->errorResponse("No callout yet.");
+                    }
+
+                    Log::info("Successfully retrieved callout of user ID " . $user->id . ". Leaving AccountController getUserCallout...\n");
+
+                    return $this->successResponse("details", $callout->body);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve user's callout. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    public function updateUserCallout(Request $request) {
+        Log::info("Entering AccountController updateUserCallout...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+            'callout' => 'bail|required|min:2|max:200',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to update user's callout. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to update user's callout. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+                    $callout = $this->getCallout($user->id);
+
+                    if ($callout) {
+                        $originalId = $callout->getOriginal('id');
+
+                        $callout->delete();
+
+                        if (UserCallout::find($originalId)) {
+                            Log::error("Failed to update callout of user ID " . $user->id . ".\n");
+
+                            return $this->errorResponse($this->getPredefinedResponse('default', null));
+                        }
+
+                        Log::notice("Soft deleted callout ID ".$originalId.".\n");
+                    }
+
+                    $callout = new UserCallout();
+
+                    $callout->user_id = $user->id;
+                    $callout->body = $request->callout;
+
+                    $callout->save();
+
+                    if (!($callout->id)) {
+                        Log::error("Failed to update callout of user ID " . $user->id . ".\n");
+
+                        return $this->errorResponse($this->getPredefinedResponse('default', null));
+                    }
+
+                    Log::info("Successfully updated callout of user ID " . $user->id . ". Leaving AccountController updateUserCallout...\n");
+
+                    return $this->successResponse("details", $callout->body);
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to update user's callout. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
+    // public function destroyUserCallout(Request $request) {
+    //     Log::info("Entering AccountController destroyUserCallout...");
+
+    //     $this->validate($request, [
+    //         'username' => 'bail|required|exists:users',
+    //         'callout' => 'bail|required|between:2,200',
+    //     ]);
+
+    //     try {
+    //         if (!($this->hasAuthHeader($request->header('authorization')))) {
+    //             Log::error("Failed to update user's callout. Missing authorization header or does not match regex.\n");
+
+    //             return $this->errorResponse($this->getPredefinedResponse('default', null));
+    //         }
+
+    //         $user = User::where('username', $request->username)->first();
+
+    //         if (!($user)) {
+    //             Log::error("Failed to update user's callout. User does not exist or might be deleted.\n");
+
+    //             return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+    //         }
+
+    //         foreach ($user->tokens as $token) {
+    //             if ($token->tokenable_id === $user->id) {
+    //                 $callout = $this->getCallout($user->id);
+
+    //                 if ($callout) {
+    //                     $originalId = 
+    //                 }
+
+    //                 Log::info("Successfully updated callout of user ID " . $user->id . ". Leaving AccountController destroyUserCallout...\n");
+
+    //                 return $this->successResponse("details", $user);
+
+    //                 break;
+    //             }
+    //         }
+    //     } catch (\Exception $e) {
+    //         Log::error("Failed to update user's callout. " . $e->getMessage() . ".\n");
+
+    //         return $this->errorResponse($this->getPredefinedResponse('default', null));
+    //     }
+    // }
+
     public function destroyUser(Request $request) {
         Log::info("Entering AccountController destroyUser...");
 
@@ -456,31 +872,5 @@ class AccountController extends Controller
 
             return $this->errorResponse($this->getPredefinedResponse('default', null));
         }
-    }
-
-    public function test(Request $request) {
-        Log::info("Test api");
-        // Log::info($request->body[0] === '{' || $request->body[0] === '[');
-        // Log::info(json_decode($request->body, true, 5));
-
-        // $test = gettype(json_decode(json_encode($request->body)));
-
-        // Log::info($test);
-
-        // $post = new DiscussionPost();
-
-        // $post->user_id = 1;
-        // $post->title = "Tiptap";
-        // $post->body = $request->body;
-        // $post->is_hobby = false;
-        // $post->is_wellbeing = false;
-        // $post->is_career = false;
-        // $post->is_coaching = false;
-        // $post->is_science_and_tech = false;
-        // $post->is_social_cause = false;
-
-        // $post->save();
-
-        // return response(json_encode($post->body), 200);
     }
 }

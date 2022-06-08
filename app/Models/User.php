@@ -47,6 +47,14 @@ class User extends Authenticatable
         return $this->hasMany(TeamMember::class);
     }
 
+    public function userDisplayPhoto() {
+        return $this->hasOne(UserDisplayPhoto::class);
+    }
+
+    public function userCallout() {
+        return $this->hasOne(UserCallout::class);
+    }
+
     public function blogEntries() {
         return $this->hasMany(BlogEntry::class);
     }

@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\JournalEntry;
 use App\Models\MicroblogEntry;
 use App\Models\User;
+use App\Models\UserCallout;
 use App\Models\DiscussionPost;
 use App\Models\DiscussionPostReply;
 use App\Models\DiscussionPostReplyHeart;
@@ -25,6 +26,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 
 trait PostTrait {
+    // Account
+    public function getCallout($userId) {
+        $callout = UserCallout::latest()->where('user_id', $userId)->first();
+
+        return $callout;
+    }
+
     public function generateSlug() {
         $rand = bin2hex(random_bytes(30));
 
@@ -133,11 +141,12 @@ trait PostTrait {
         $mostLovedMicroblogEntry = null;
 
         try {
-            $microblogEntries = MicroblogEntry::withCount(['microblogEntryHearts' => function (Builder $q) {
-                $q->where('is_heart', true);
-            }])->where('user_id', $userId)->orderBy('microblog_entry_hearts_count', 'desc')->get();
+            $microblogEntries = MicroblogEntry::has('microblogEntryHearts')->withCount(['microblogEntryHearts' => function (Builder $q) {
+                                    $q->where('is_heart', true);
+                                }])->where('user_id', $userId)->orderBy('microblog_entry_hearts_count', 'desc')->get();
 
             if ($microblogEntries) {
+                Log::info($microblogEntries);
                 if (count($microblogEntries) > 0) {
                     $mostLovedMicroblogEntry = $microblogEntries->first();
 
@@ -162,7 +171,8 @@ trait PostTrait {
         $mostActiveMicroblogEntry = null;
 
         try {
-            $microblogEntries = MicroblogEntry::withCount('microblogEntryComments')
+            $microblogEntries = MicroblogEntry::has('microblogEntryComments')
+                                              ->withCount('microblogEntryComments')
                                               ->where('user_id', $userId)
                                               ->orderBy('microblog_entry_comments_count', 'desc')
                                               ->get();
