@@ -133,11 +133,12 @@ trait PostTrait {
         $mostLovedMicroblogEntry = null;
 
         try {
-            $microblogEntries = MicroblogEntry::withCount(['microblogEntryHearts' => function (Builder $q) {
-                $q->where('is_heart', true);
-            }])->where('user_id', $userId)->orderBy('microblog_entry_hearts_count', 'desc')->get();
+            $microblogEntries = MicroblogEntry::has('microblogEntryHearts')->withCount(['microblogEntryHearts' => function (Builder $q) {
+                                    $q->where('is_heart', true);
+                                }])->where('user_id', $userId)->orderBy('microblog_entry_hearts_count', 'desc')->get();
 
             if ($microblogEntries) {
+                Log::info($microblogEntries);
                 if (count($microblogEntries) > 0) {
                     $mostLovedMicroblogEntry = $microblogEntries->first();
 
@@ -162,7 +163,8 @@ trait PostTrait {
         $mostActiveMicroblogEntry = null;
 
         try {
-            $microblogEntries = MicroblogEntry::withCount('microblogEntryComments')
+            $microblogEntries = MicroblogEntry::has('microblogEntryComments')
+                                              ->withCount('microblogEntryComments')
                                               ->where('user_id', $userId)
                                               ->orderBy('microblog_entry_comments_count', 'desc')
                                               ->get();

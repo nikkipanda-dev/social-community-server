@@ -33,7 +33,6 @@ Route::get('validate-invitation/{token}', [AccountController::class, 'validateTo
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
-    // Route::post('test', [MessageController::class, 'storeMessage']);
 
     // Account
     Route::get('search-user', [AccountController::class, 'searchUser']);
@@ -41,6 +40,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('invite', [AccountController::class, 'invite']);
     Route::get('users', [AccountController::class, 'getUsers']);
     Route::get('administrators', [AccountController::class, 'getAdministrators']);
+    Route::post('user/name/update', [AccountController::class, 'updateUserFullName']);
+    Route::post('user/email/update', [AccountController::class, 'updateUserEmail']);
+    Route::post('user/display-photo/update', [AccountController::class, 'updateUserDisplayPhoto']);
+    Route::post('user/password/update', [AccountController::class, 'updateUserPassword']);
     Route::post('destroy-administrator', [AccountController::class, 'destroyAdministrator']);
     Route::post('destroy-user', [AccountController::class, 'destroyUser']);
 
