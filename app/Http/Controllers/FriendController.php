@@ -8,11 +8,13 @@ use App\Models\Friend;
 use App\Traits\AuthTrait;
 use App\Traits\ResponseTrait;
 use App\Traits\FriendTrait;
+use App\Traits\FileTrait;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 class FriendController extends Controller
 {
-    use AuthTrait, ResponseTrait, FriendTrait;
+    use AuthTrait, ResponseTrait, FriendTrait, FileTrait;
 
     public function storeFriend(Request $request) {
         Log::info("Entering FriendController storeFriend...");
@@ -278,14 +280,12 @@ class FriendController extends Controller
                             if (count($friends) === 0) {
                                 Log::notice("User ID " . $user->id . " has no friends yet.\n");
 
-                                return $this->errorResponse(null);
+                                return $this->errorResponse("No friends yet.");
                             }
 
-                            if (count($friends) > 0) {
-                                Log::info("Successfully retrieved user ID " . $user->id . "'s friends. Leaving FriendController getAllFriends...\n");
+                            Log::info("Successfully retrieved user ID " . $user->id . "'s friends. Leaving FriendController getAllFriends...\n");
 
-                                return $this->successResponse("details", $friends);
-                            }
+                            return $this->successResponse("details", $friends);
 
                             break;
                         }
