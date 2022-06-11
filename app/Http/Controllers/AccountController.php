@@ -505,9 +505,11 @@ class AccountController extends Controller
     }
 
     public function getUserDisplayPhoto(Request $request) {
+        // return response($request->all(), 200);
         Log::info("Entering AccountController getUserDisplayPhoto...");
 
         $this->validate($request, [
+            'auth_username' => 'bail|required|exists:users,username',
             'username' => 'bail|required|exists:users',
         ]);
 
@@ -518,16 +520,17 @@ class AccountController extends Controller
                 return $this->errorResponse($this->getPredefinedResponse('default', null));
             }
 
+            $authUser = User::where('username', $request->auth_username)->first();
             $user = User::where('username', $request->username)->first();
 
-            if (!($user)) {
-                Log::error("Failed to retrieve user's display photo. User does not exist or might be deleted.\n");
+            if (!($authUser) || !($user)) {
+                Log::error("Failed to retrieve user's display photo. Authenticated user and/or requested user does not exist or might be deleted.\n");
 
                 return $this->errorResponse($this->getPredefinedResponse('user not found', null));
             }
 
-            foreach ($user->tokens as $token) {
-                if ($token->tokenable_id === $user->id) {
+            foreach ($authUser->tokens as $token) {
+                if ($token->tokenable_id === $authUser->id) {
 
                     $displayPhoto = $this->getDisplayPhoto($user->id);
 

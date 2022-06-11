@@ -266,7 +266,7 @@ class FriendController extends Controller
                 $authUser = User::where('username', $request->auth_username)->first();
                 $user = User::where('username', $request->username)->first();
 
-                if (!($authUser) && !($user)) {
+                if (!($authUser) || !($user)) {
                     Log::error("Failed to retrieve friends. Authenticated user and/or author does not exist or might be deleted.\n");
 
                     return $this->errorResponse($this->getPredefinedResponse('user not found', null));
@@ -282,10 +282,20 @@ class FriendController extends Controller
 
                                 return $this->errorResponse("No friends yet.");
                             }
+                            
+                            $formatted = [];
+                            foreach($friends as $friend) {
+                                $displayPhoto = $this->getDisplayPhoto($friend['id']);
+
+                                $friend['display_photo'] = $displayPhoto ? Storage::disk($displayPhoto->disk)->url("user/" . $displayPhoto->path) : '';
+                                unset($friend['id']);
+                                $formatted[] = $friend;
+                                Log::info($friend);
+                            }
 
                             Log::info("Successfully retrieved user ID " . $user->id . "'s friends. Leaving FriendController getAllFriends...\n");
 
-                            return $this->successResponse("details", $friends);
+                            return $this->successResponse("details", $formatted);
 
                             break;
                         }

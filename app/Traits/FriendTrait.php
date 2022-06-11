@@ -24,6 +24,7 @@ trait FriendTrait {
             foreach ($allFriends as $friend) {
                 if ($friend->users->first()->id !== $userId) {    
                     $friends[] = [
+                        'id' => $friend->users->first()->id,
                         'username' => $friend->users->first()->username,
                         'first_name' => $friend->users->first()->first_name,
                         'last_name' => $friend->users->first()->last_name,
@@ -32,6 +33,7 @@ trait FriendTrait {
 
                 if ($friend->friends->first()->id !== $userId) {
                     $friends[] = [
+                        'id' => $friend->friends->first()->id,
                         'username' => $friend->friends->first()->username,
                         'first_name' => $friend->friends->first()->first_name,
                         'last_name' => $friend->friends->first()->last_name,
