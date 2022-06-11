@@ -504,6 +504,53 @@ class AccountController extends Controller
         }
     }
 
+    public function getUserDisplayPhoto(Request $request) {
+        Log::info("Entering AccountController getUserDisplayPhoto...");
+
+        $this->validate($request, [
+            'username' => 'bail|required|exists:users',
+        ]);
+
+        try {
+            if (!($this->hasAuthHeader($request->header('authorization')))) {
+                Log::error("Failed to retrieve user's display photo. Missing authorization header or does not match regex.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('default', null));
+            }
+
+            $user = User::where('username', $request->username)->first();
+
+            if (!($user)) {
+                Log::error("Failed to retrieve user's display photo. User does not exist or might be deleted.\n");
+
+                return $this->errorResponse($this->getPredefinedResponse('user not found', null));
+            }
+
+            foreach ($user->tokens as $token) {
+                if ($token->tokenable_id === $user->id) {
+
+                    $displayPhoto = $this->getDisplayPhoto($user->id);
+
+                    if (!($displayPhoto)) {
+                        Log::info("Failed to retrieve display photo of user ID " . $user->id . ". Display photo does not exist or might be deleted.\n");
+
+                        return $this->errorResponse("No display photo yet.");
+                    }
+
+                    Log::info("Successfully retrieved display photo of user ID " . $user->id . ". Leaving AccountController getUserDisplayPhoto...\n");
+
+                    return $this->successResponse("details", Storage::disk($displayPhoto->disk)->url("user/" . $displayPhoto->path));
+
+                    break;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to retrieve user's display photo. " . $e->getMessage() . ".\n");
+
+            return $this->errorResponse($this->getPredefinedResponse('default', null));
+        }
+    }
+
     public function updateUserDisplayPhoto(Request $request) {
         Log::info("Entering AccountController updateUserDisplayPhoto...");
 

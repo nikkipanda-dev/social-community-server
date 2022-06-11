@@ -42,6 +42,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('administrators', [AccountController::class, 'getAdministrators']);
     Route::post('user/name/update', [AccountController::class, 'updateUserFullName']);
     Route::post('user/email/update', [AccountController::class, 'updateUserEmail']);
+    Route::get('user/display-photo/get', [AccountController::class, 'getUserDisplayPhoto']);
     Route::post('user/display-photo/update', [AccountController::class, 'updateUserDisplayPhoto']);
     Route::post('user/password/update', [AccountController::class, 'updateUserPassword']);
     Route::post('user/callout/update', [AccountController::class, 'updateUserCallout']);
